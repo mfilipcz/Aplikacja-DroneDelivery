@@ -1,0 +1,1 @@
+-v --force --timestamp=none --sign - /Users/mfilipcz/Desktop/PRNET/DroneDeliveryMac/bin/Debug/net9.0-maccatalyst/maccatalyst-arm64/DroneDeliveryMac.app/Contents/MonoBundle/libe_sqlite3.dylib

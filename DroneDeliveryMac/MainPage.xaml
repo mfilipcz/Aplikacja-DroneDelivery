@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<TabbedPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:DroneDeliveryMac.Models;assembly=DroneDeliveryMac"
+             x:Class="DroneDeliveryMac.MainPage"
+             SelectedTabColor="#512BD4"
+             UnselectedTabColor="Gray"
+             BackgroundColor="#FFFFFF">
+
+    <ContentPage Title="Moje Drony" BackgroundColor="#F4F4F4">
+        <Grid ColumnDefinitions="300, *">
+            
+            <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto, *">
+                <Label Grid.Row="0" Text="Wychodzące" FontAttributes="Bold" Padding="10" BackgroundColor="#E0E0E0" TextColor="Black"/>
+                
+                <CollectionView x:Name="ListOutgoing" Grid.Row="1" SelectionMode="Single" SelectionChanged="OnOrderSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame Margin="5" Padding="5" BackgroundColor="#FFFFFF" BorderColor="Gray">
+                                <VerticalStackLayout>
+                                    <Label Text="{Binding DestinationAddress, StringFormat='Do: {0}'}" FontAttributes="Bold" TextColor="Black"/>
+                                    <Label Text="{Binding Status}" FontSize="11" TextColor="Gray"/>
+                                    <ProgressBar Progress="{Binding Progress}" ProgressColor="#512BD4"/>
+                                </VerticalStackLayout>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Grid.Row="2" Text="Przychodzące" FontAttributes="Bold" Padding="10" BackgroundColor="#E0E0E0" TextColor="Black"/>
+                
+                <CollectionView x:Name="ListIncoming" Grid.Row="3" SelectionMode="Single" SelectionChanged="OnOrderSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame Margin="5" Padding="5" BackgroundColor="#E8F4FF" BorderColor="Gray">
+                                <VerticalStackLayout>
+                                    <Label Text="{Binding OriginAddress, StringFormat='Od: {0}'}" FontAttributes="Bold" TextColor="Black"/>
+                                    <Label Text="{Binding Status}" FontSize="11" TextColor="Gray"/>
+                                    <ProgressBar Progress="{Binding Progress}" ProgressColor="Green"/>
+                                </VerticalStackLayout>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+
+            <Grid Grid.Column="1">
+                <Grid x:Name="MapContainer" BackgroundColor="#E0E0E0" />
+                <Label Text="Uruchamianie nawigacji..." 
+                       x:Name="MapOverlayInfo"
+                       BackgroundColor="#AAFFFFFF" 
+                       HorizontalOptions="Center" VerticalOptions="Center" 
+                       Padding="20" FontAttributes="Bold"
+                       TextColor="Black"/>
+            </Grid>
+        </Grid>
+    </ContentPage>
+
+    <ContentPage Title="Nadaj Paczkę" BackgroundColor="#FFFFFF">
+        <ScrollView>
+            <VerticalStackLayout Padding="40" Spacing="20" MaximumWidthRequest="600" HorizontalOptions="Center">
+                <Label Text="Formularz Nadania" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" TextColor="Black"/>
+
+                <Frame Padding="20" BorderColor="LightGray" BackgroundColor="#FFFFFF">
+                    <VerticalStackLayout Spacing="15">
+                        <Entry x:Name="EntryOrigin" Placeholder="Adres Nadania" TextColor="Black" PlaceholderColor="Gray"/>
+                        <Entry x:Name="EntryDest" Placeholder="Adres Dostawy" TextColor="Black" PlaceholderColor="Gray"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Grid ColumnDefinitions="*, *" ColumnSpacing="20">
+                    <VerticalStackLayout Grid.Column="0" Spacing="10">
+                        <Label Text="Data Nadania" TextColor="Gray"/>
+                        <DatePicker x:Name="PickerSendDate" Format="dd.MM.yyyy" TextColor="Black"/>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Column="1" Spacing="10">
+                        <Label Text="Oczekiwana Dostawa" TextColor="Gray"/>
+                        <DatePicker x:Name="PickerDeliverDate" Format="dd.MM.yyyy" TextColor="Black"/>
+                    </VerticalStackLayout>
+                </Grid>
+
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="Waga Paczki" TextColor="Gray"/>
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Slider x:Name="SliderWeight" Minimum="0.5" Maximum="20" Value="1" Grid.Column="0"/>
+                        <Label x:Name="LabelWeight" Text="1.0 kg" Grid.Column="1" FontAttributes="Bold" TextColor="Black"/>
+                    </Grid>
+                </VerticalStackLayout>
+
+                <Frame BackgroundColor="#F0F0F0" Padding="15">
+                    <Label x:Name="LabelCost" Text="Koszt: 0.00 PLN" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" TextColor="Black"/>
+                </Frame>
+
+                <Button Text="ZAPŁAĆ I WYŚLIJ" Clicked="OnSendPackageClicked" HeightRequest="50" BackgroundColor="#512BD4" TextColor="White" FontAttributes="Bold"/>
+            </VerticalStackLayout>
+        </ScrollView>
+    </ContentPage>
+
+    <ContentPage Title="Odbierz" BackgroundColor="#FFCC00">
+        <Grid RowDefinitions="*, Auto, *">
+            <VerticalStackLayout Grid.Row="1" Spacing="20" HorizontalOptions="Center">
+                <Label Text="Odbiór Dronem" FontSize="28" FontAttributes="Bold" HorizontalOptions="Center" TextColor="Black"/>
+                <Button Text="OTWÓRZ SKRYTKĘ" BackgroundColor="Black" TextColor="White" FontAttributes="Bold" WidthRequest="300" HeightRequest="60" CornerRadius="10"/>
+            </VerticalStackLayout>
+        </Grid>
+    </ContentPage>
+
+</TabbedPage>

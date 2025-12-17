@@ -1,0 +1,2 @@
+obj/Debug/net9.0-ios/iossimulator-arm64/Protos/Drones.cs \
+obj/Debug/net9.0-ios/iossimulator-arm64/Protos/DronesGrpc.cs: Protos/drones.proto

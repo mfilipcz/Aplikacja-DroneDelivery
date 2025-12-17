@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option csharp_namespace = "DroneDeliveryMac.Protos";
+
+package drones;
+
+// Definicja serwisu (to co serwer "umie robić")
+service DroneService {
+  rpc GetOrders (Empty) returns (OrderList);
+  rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
+  rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
+}
+
+// Wiadomości (dane)
+message Empty {}
+
+message ServerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message OrderList {
+  repeated DroneOrderMsg orders = 1;
+}
+
+message DroneOrderMsg {
+  string id = 1;
+  string originAddress = 2;
+  double originLat = 3;
+  double originLng = 4;
+  string destinationAddress = 5;
+  double destLat = 6;
+  double destLng = 7;
+  double packageWeightKg = 8;
+  string status = 9;
+  double progress = 10;
+  // Daty w protobuf przesyła się zazwyczaj jako string lub timestamp
+  string sendDate = 11; 
+}

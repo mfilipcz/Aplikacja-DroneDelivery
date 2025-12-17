@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneDeliveryMac.StartPage"
+             BackgroundColor="#F0F2F5"
+             Title="Menu Główne">
+
+    <Grid RowDefinitions="Auto, *" Padding="30">
+        
+        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,20,0,40">
+            <Image Source="dotnet_bot.svg" HeightRequest="100" />
+            <Label Text="Drone Delivery System" 
+                   FontSize="32" 
+                   FontAttributes="Bold" 
+                   HorizontalOptions="Center" 
+                   TextColor="#1a1a1a"/>
+            <Label Text="Wybierz operację, aby rozpocząć" 
+                   FontSize="16" 
+                   TextColor="Gray" 
+                   HorizontalOptions="Center"/>
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" RowDefinitions="*,*,*" ColumnDefinitions="*" RowSpacing="20" MaximumWidthRequest="400">
+            
+            <Button Grid.Row="0"
+                    Text="📦 Moje Paczki i Mapa" 
+                    Clicked="OnMyPackagesClicked"
+                    BackgroundColor="White"
+                    TextColor="#512BD4"
+                    FontAttributes="Bold"
+                    FontSize="18"
+                    BorderColor="#512BD4"
+                    BorderWidth="2"
+                    CornerRadius="10"
+                    HeightRequest="80"
+                    Shadow="{Shadow Brush=Black, Offset='2,2', Opacity=0.1}"/>
+
+            <Button Grid.Row="1"
+                    Text="📤 Nadaj Paczkę" 
+                    Clicked="OnSendClicked"
+                    BackgroundColor="#512BD4"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    FontSize="18"
+                    CornerRadius="10"
+                    HeightRequest="80"
+                    Shadow="{Shadow Brush=Black, Offset='2,2', Opacity=0.2}"/>
+
+            <Button Grid.Row="2"
+                    Text="📥 Odbierz Paczkę" 
+                    Clicked="OnReceiveClicked"
+                    BackgroundColor="#FFCC00"
+                    TextColor="Black"
+                    FontAttributes="Bold"
+                    FontSize="18"
+                    CornerRadius="10"
+                    HeightRequest="80"
+                    Shadow="{Shadow Brush=Black, Offset='2,2', Opacity=0.2}"/>
+        </Grid>
+    </Grid>
+</ContentPage>
