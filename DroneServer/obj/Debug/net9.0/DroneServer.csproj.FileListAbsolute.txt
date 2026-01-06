@@ -34,3 +34,4 @@
 /Users/mfilipcz/Desktop/PRNET/DroneServer/obj/Debug/net9.0/DroneServer.pdb
 /Users/mfilipcz/Desktop/PRNET/DroneServer/obj/Debug/net9.0/DroneServer.genruntimeconfig.cache
 /Users/mfilipcz/Desktop/PRNET/DroneServer/obj/Debug/net9.0/ref/DroneServer.dll
+/Users/mfilipcz/Desktop/PRNET/DroneServer/obj/Debug/net9.0/DroneServer.sourcelink.json
