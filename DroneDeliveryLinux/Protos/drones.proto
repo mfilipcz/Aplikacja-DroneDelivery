@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option csharp_namespace = "DroneServer";
+
+package drones;
+
+service DroneService {
+  // Pobierz wszystkie paczki
+  rpc GetOrders (Empty) returns (OrderList);
+  // Dodaj nową paczkę
+  rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
+  // Zaktualizuj status (dron melduje pozycję)
+  rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
+}
+
+message Empty {}
+
+message ServerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message OrderList {
+  repeated DroneOrderMsg orders = 1;
+}
+
+// To jest odpowiednik Twojego DroneOrder.cs
+message DroneOrderMsg {
+  string id = 1;
+  string originAddress = 2;
+  double originLat = 3;
+  double originLng = 4;
+  string destinationAddress = 5;
+  double destLat = 6;
+  double destLng = 7;
+  double packageWeightKg = 8;
+  string status = 9;
+  double progress = 10;
+  bool isIncoming = 11;
+  string sendDate = 12;      // Daty przesyłamy jako tekst (ISO 8601)
+  string deliveryDate = 13;
+  double currentLat = 14;
+  double currentLng = 15;
+}

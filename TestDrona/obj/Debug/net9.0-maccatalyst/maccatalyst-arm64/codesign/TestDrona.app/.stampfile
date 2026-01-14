@@ -1,1 +1,0 @@
--v --force --timestamp=none --sign - --entitlements /Users/mfilipcz/Desktop/PRNET/TestDrona/obj/Debug/net9.0-maccatalyst/maccatalyst-arm64/Entitlements.xcent /Users/mfilipcz/Desktop/PRNET/TestDrona/bin/Debug/net9.0-maccatalyst/maccatalyst-arm64/TestDrona.app

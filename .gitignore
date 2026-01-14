@@ -1,0 +1,17 @@
+server.log
+zmiany.md
+*.cache*
+**/Debug/
+
+**/bin/
+**/obj/
+
+.vs/
+*.user
+*.suo
+
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db
