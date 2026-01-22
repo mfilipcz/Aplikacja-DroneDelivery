@@ -15,3 +15,6 @@ zmiany.md
 
 .DS_Store
 Thumbs.db
+
+screens/
+*.log*
