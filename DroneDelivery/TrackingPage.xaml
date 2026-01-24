@@ -1,0 +1,25 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:maps="http://schemas.microsoft.com/dotnet/2021/maui/maps"
+             x:Class="DroneDelivery.TrackingPage"
+             Title="Śledzenie przesyłki">
+
+    <Grid ColumnDefinitions="300, *">
+        
+        <Grid Grid.Column="0" RowDefinitions="Auto, *" BackgroundColor="#F5F5F7">
+            <Label Grid.Row="0" Text="Panel sterowania" FontAttributes="Bold" FontSize="16" Padding="15" BackgroundColor="#E0E0E0"/>
+            
+            <ScrollView Grid.Row="1">
+                <VerticalStackLayout Padding="10" Spacing="15">
+                    <VerticalStackLayout>
+                        <Label Text="Twoje Przesyłki" TextColor="#666" FontSize="12" FontAttributes="Bold" Margin="0,0,0,5"/>
+                        <VerticalStackLayout x:Name="OrdersStack" Spacing="8"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+
+        <maps:Map x:Name="DroneMap" Grid.Column="1" IsShowingUser="True" MapType="Street"/>
+        
+    </Grid>
+</ContentPage>
