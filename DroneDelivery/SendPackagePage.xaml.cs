@@ -6,19 +6,26 @@ namespace DroneDelivery;
 public partial class SendPackagePage : ContentPage
 {
     private readonly DroneService.DroneServiceClient _client;
+    // Potrzebujemy sesji, żeby wiedzieć, jakie jest nasze ID
+    private readonly ClientSession _session;
 
-    public SendPackagePage(DroneService.DroneServiceClient client)
+    // Konstruktor przyjmuje teraz także sesję
+    public SendPackagePage(DroneService.DroneServiceClient client, ClientSession session)
     {
         InitializeComponent();
         _client = client;
-        // Domyślnie dostawa na jutro
+        _session = session;
+        
+        // Domyślne ustawienia daty
         DeliveryDate.Date = DateTime.Now.AddDays(1);
         UpdateCost();
     }
 
     private void OnSliderValueChanged(object sender, ValueChangedEventArgs e)
     {
-        WeightLabel.Text = $"{e.NewValue:F1} kg";
+        if (WeightLabel != null)
+            WeightLabel.Text = $"{e.NewValue:F1} kg";
+            
         UpdateCost();
     }
 
@@ -29,6 +36,8 @@ public partial class SendPackagePage : ContentPage
 
     private void UpdateCost()
     {
+        if (CostLabel == null) return;
+
         TimeSpan diff = DeliveryDate.Date - SendDate.Date;
         int days = (int)diff.TotalDays;
 
@@ -38,7 +47,7 @@ public partial class SendPackagePage : ContentPage
             return;
         }
 
-        // Algorytm: Waga + Szybkość dostawy
+        // Prosty algorytm kosztów: Waga * 10 + Szybkość
         double weightCost = WeightSlider.Value * 10;
         double speedCost = 50.0 / (days + 1);
         double totalCost = 20 + weightCost + speedCost;
@@ -48,6 +57,36 @@ public partial class SendPackagePage : ContentPage
 
     private async void OnPayAndSendClicked(object sender, EventArgs e)
     {
+        // --- 1. MECHANIZM RATUNKOWY (AUTO-REJESTRACJA) ---
+        // Jeśli z jakiegoś powodu nie mamy ID (serwis w tle nie zdążył),
+        // próbujemy pobrać je teraz, zamiast blokować użytkownika.
+        if (!_session.IsRegistered)
+        {
+            try
+            {
+                var regResponse = await _client.RegisterClientAsync(new ClientInfo { Platform = "Mac" });
+                if (regResponse.Success)
+                {
+                    _session.ClientId = regResponse.ClientId;
+                    Console.WriteLine($"[SendPage] Uratowano sesję. Nowe ID: {_session.ClientId}");
+                }
+                else
+                {
+                    await DisplayAlert("Błąd", "Serwer odrzucił rejestrację.", "OK");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                // To wyłapie błąd, jeśli serwer w ogóle nie odpowiada (zły port/IP)
+                await DisplayAlert("Błąd połączenia", 
+                    $"Nie można połączyć z serwerem.\nUpewnij się, że serwer działa na porcie 5011.\nBłąd: {ex.Message}", 
+                    "OK");
+                return;
+            }
+        }
+
+        // --- 2. WALIDACJA FORMULARZA ---
         if (string.IsNullOrWhiteSpace(OriginEntry.Text) || string.IsNullOrWhiteSpace(DestEntry.Text))
         {
             await DisplayAlert("Błąd", "Wprowadź adresy!", "OK");
@@ -60,9 +99,10 @@ public partial class SendPackagePage : ContentPage
              return;
         }
 
+        // --- 3. WYSYŁKA ---
         try 
         {
-            // Geocoding (zamiana adresu na współrzędne)
+            // Geocoding - zamiana adresu na współrzędne
             var startLocations = await Geocoding.GetLocationsAsync(OriginEntry.Text);
             var startLoc = startLocations?.FirstOrDefault();
 
@@ -71,7 +111,7 @@ public partial class SendPackagePage : ContentPage
 
             if (startLoc == null || destLoc == null)
             {
-                await DisplayAlert("Błąd", "Nie znaleziono adresu.", "OK");
+                await DisplayAlert("Błąd", "Nie znaleziono podanego adresu na mapie.", "OK");
                 return;
             }
 
@@ -89,7 +129,10 @@ public partial class SendPackagePage : ContentPage
                 DestLng = destLoc.Longitude,
                 CurrentLat = startLoc.Latitude,
                 CurrentLng = startLoc.Longitude,
-                IsIncoming = false
+                IsIncoming = false,
+                
+                // WAŻNE: Przypisujemy ID klienta, żeby widzieć tę paczkę na mapie
+                ClientId = _session.ClientId 
             };
 
             var response = await _client.AddOrderAsync(order);
@@ -98,13 +141,13 @@ public partial class SendPackagePage : ContentPage
             {
                 await DisplayAlert("Sukces", "Paczka nadana!", "OK");
                 
-                // POPRAWKA: Przekierowanie prosto do mapy zamiast cofania
-                await Navigation.PushAsync(new TrackingPage(_client));
+                // Przechodzimy do mapy, przekazując klienta i sesję
+                await Navigation.PushAsync(new TrackingPage(_client, _session));
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Błąd", $"Coś poszło nie tak: {ex.Message}", "OK");
+            await DisplayAlert("Błąd", $"Wystąpił błąd podczas wysyłania: {ex.Message}", "OK");
         }
     }
 }

@@ -5,15 +5,40 @@ option csharp_namespace = "DroneServer";
 package drones;
 
 service DroneService {
-  // Pobierz wszystkie paczki
-  rpc GetOrders (Empty) returns (OrderList);
+  // Rejestracja klienta (hello)
+  rpc RegisterClient (ClientInfo) returns (RegisterResponse);
+  // Pobierz paczki danego klienta
+  rpc GetOrders (ClientRequest) returns (OrderList);
   // Dodaj nową paczkę
   rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
   // Zaktualizuj status (dron melduje pozycję)
   rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
+  // Usuń paczkę
+  rpc DeleteOrder (DeleteRequest) returns (ServerResponse);
 }
 
 message Empty {}
+
+// Informacje o kliencie przy rejestracji
+message ClientInfo {
+  string platform = 1;  // "Linux", "Mac", "Windows"
+}
+
+// Odpowiedź z przydzielonym ID klienta
+message RegisterResponse {
+  bool success = 1;
+  string clientId = 2;  // np. "Linux1", "Mac2"
+}
+
+// Żądanie z identyfikatorem klienta
+message ClientRequest {
+  string clientId = 1;
+}
+
+message DeleteRequest {
+  string id = 1;
+  string clientId = 2;
+}
 
 message ServerResponse {
   bool success = 1;
@@ -41,4 +66,5 @@ message DroneOrderMsg {
   string deliveryDate = 13;
   double currentLat = 14;
   double currentLng = 15;
+  string clientId = 16;      // ID klienta który utworzył paczkę
 }

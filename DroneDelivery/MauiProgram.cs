@@ -21,7 +21,10 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Konfiguracja gRPC
+        // 1. Rejestrujemy Sesję jako Singleton (wspólna dla całej aplikacji)
+        builder.Services.AddSingleton<ClientSession>();
+
+        // 2. Konfiguracja gRPC na port 5011
         builder.Services.AddSingleton(services =>
         {
             var httpHandler = new SocketsHttpHandler
@@ -32,7 +35,8 @@ public static class MauiProgram
                 EnableMultipleHttp2Connections = true
             };
 
-            var channel = GrpcChannel.ForAddress("http://localhost:5000", new GrpcChannelOptions
+            // ZMIANA PORTU NA 5011 (zgodnie z nowym serwerem)
+            var channel = GrpcChannel.ForAddress("http://127.0.0.1:5011", new GrpcChannelOptions
             {
                 HttpHandler = httpHandler
             });
@@ -40,10 +44,8 @@ public static class MauiProgram
             return new DroneService.DroneServiceClient(channel);
         });
 
-        // --- NOWOŚĆ: Rejestrujemy Symulator jako Singleton ---
-        // Singleton oznacza, że działa jeden w tle przez całe życie aplikacji
         builder.Services.AddSingleton<DroneSimulatorService>();
-
+        
         builder.Services.AddTransient<MainPage>();
         builder.Services.AddTransient<SendPackagePage>();
         builder.Services.AddTransient<TrackingPage>();

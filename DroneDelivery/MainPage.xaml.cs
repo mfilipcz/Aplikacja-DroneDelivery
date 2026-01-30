@@ -5,23 +5,27 @@ namespace DroneDelivery;
 public partial class MainPage : ContentPage
 {
     private readonly DroneService.DroneServiceClient _client;
-    // Przyjmujemy symulator tylko po to, żeby system go utworzył i uruchomił timer
-    private readonly DroneSimulatorService _simulator; 
+    private readonly DroneSimulatorService _simulator;
+    // Dodajemy sesję
+    private readonly ClientSession _session;
 
-    public MainPage(DroneService.DroneServiceClient client, DroneSimulatorService simulator)
+    public MainPage(DroneService.DroneServiceClient client, DroneSimulatorService simulator, ClientSession session)
     {
         InitializeComponent();
         _client = client;
-        _simulator = simulator; // To uruchamia konstruktor serwisu i startuje animację w tle
+        _simulator = simulator;
+        _session = session;
     }
 
     private async void OnSendPackageClicked(object sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SendPackagePage(_client));
+        // Przekazujemy klienta i sesję
+        await Navigation.PushAsync(new SendPackagePage(_client, _session));
     }
 
     private async void OnMyPackagesClicked(object sender, EventArgs e)
     {
-        await Navigation.PushAsync(new TrackingPage(_client));
+        // Przekazujemy klienta i sesję
+        await Navigation.PushAsync(new TrackingPage(_client, _session));
     }
 }
