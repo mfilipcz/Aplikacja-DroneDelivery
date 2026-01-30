@@ -56,20 +56,29 @@ public partial class MainViewModel : ObservableObject
     private string _labelCost = "Koszt: 57.00 PLN";
 
     [ObservableProperty]
-    private DateTimeOffset _sendDate = new DateTimeOffset(DateTime.Today);
+    private DateTime _sendDate = DateTime.Today;
 
     [ObservableProperty]
-    private DateTimeOffset _deliverDate = new DateTimeOffset(DateTime.Today.AddDays(2));
+    private DateTime _deliverDate = DateTime.Today.AddDays(2);
 
     // Handlery zmian właściwości dla przeliczania kosztu
     partial void OnSliderWeightChanged(double value) => RecalculateCost();
-    partial void OnSendDateChanged(DateTimeOffset value) => RecalculateCost();
-    partial void OnDeliverDateChanged(DateTimeOffset value)
+    partial void OnSendDateChanged(DateTime value)
+    {
+        if (value.Date < DateTime.Today)
+        {
+            SendDate = DateTime.Today;
+            return;
+        }
+        RecalculateCost();
+    }
+    
+    partial void OnDeliverDateChanged(DateTime value)
     {
         // Walidacja - data dostawy nie może być mniejsza niż dziś
-        if (value.Date < DateTimeOffset.Now.Date)
+        if (value.Date < DateTime.Today)
         {
-            DeliverDate = DateTimeOffset.Now;
+            DeliverDate = DateTime.Today;
             return;
         }
         RecalculateCost();
@@ -81,8 +90,8 @@ public partial class MainViewModel : ObservableObject
         
         // Oblicz różnicę dni między datą dostawy a datą nadania
         // Używamy DateOnly dla precyzyjnego porównania tylko dat (bez czasu)
-        var sendDateOnly = DateOnly.FromDateTime(SendDate.Date);
-        var deliverDateOnly = DateOnly.FromDateTime(DeliverDate.Date);
+        var sendDateOnly = DateOnly.FromDateTime(SendDate);
+        var deliverDateOnly = DateOnly.FromDateTime(DeliverDate);
         int days = deliverDateOnly.DayNumber - sendDateOnly.DayNumber;
         
         // Walidacja - data dostawy nie może być wcześniejsza niż data nadania
@@ -96,7 +105,7 @@ public partial class MainViewModel : ObservableObject
         decimal basePrice = 10.0m;
         
         // Skalowanie wagi: im cięższa paczka, tym drożej
-        // 0.5kg = +1 PLN, 10kg = +20 PLN, 20kg = +40 PLN
+        // 0.5kg = +1 PLN, 2.5kg = +5 PLN, 5kg = +10 PLN
         decimal weightCost = (decimal)weight * 2.0m;
         
         // Skalowanie terminu: im bliższy termin, tym drożej
@@ -249,7 +258,18 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(EntryOrigin) || string.IsNullOrWhiteSpace(EntryDest))
         {
-            ErrorOccurred?.Invoke("Wprowadź adres nadania i dostawy.");
+            if (string.IsNullOrWhiteSpace(EntryOrigin) && string.IsNullOrWhiteSpace(EntryDest))
+            {
+                ErrorOccurred?.Invoke("Wprowadź adres nadania i dostawy.");
+            }
+            else if (string.IsNullOrWhiteSpace(EntryOrigin))
+            {
+                ErrorOccurred?.Invoke("Wprowadź adres nadania.");
+            }
+            else
+            {
+                ErrorOccurred?.Invoke("Wprowadź adres dostawy.");
+            }
             return;
         }
         
@@ -265,7 +285,18 @@ public partial class MainViewModel : ObservableObject
 
         if (originCoords == null || destCoords == null)
         {
-            ErrorOccurred?.Invoke("Nie znaleziono adresu. Sprawdź poprawność.");
+            if (originCoords == null && destCoords == null)
+            {
+                ErrorOccurred?.Invoke("Nie znaleziono adresów nadania i dostawy. Sprawdź poprawność.");
+            }
+            else if (originCoords == null)
+            {
+                ErrorOccurred?.Invoke($"Nie znaleziono adresu nadania: '{EntryOrigin}'. Sprawdź poprawność.");
+            }
+            else
+            {
+                ErrorOccurred?.Invoke($"Nie znaleziono adresu dostawy: '{EntryDest}'. Sprawdź poprawność.");
+            }
             return;
         }
 
@@ -280,8 +311,8 @@ public partial class MainViewModel : ObservableObject
             DestLat = destCoords.Value.lat,
             DestLng = destCoords.Value.lng,
             PackageWeightKg = SliderWeight,
-            SendDate = SendDate.DateTime,
-            DeliveryDate = DeliverDate.DateTime,
+            SendDate = SendDate,
+            DeliveryDate = DeliverDate,
             Status = "Inicjalizacja...",
             Progress = 0.0
         };

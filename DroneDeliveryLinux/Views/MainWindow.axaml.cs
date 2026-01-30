@@ -56,8 +56,9 @@ public partial class MainWindow : Window
     // --- SKALE IKON NA MAPIE ---
     private const double PinScale = 1.6;
     private const double PinOffsetY = 0.5; // Czubek pinezki na punkcie
-    private const double DroneBackdropScale = 1.8;
-    private const double DroneIconScale = 0.8;
+    private const double DroneBackdropScale = 1.3; // even thinner backdrop to reduce blue outline
+    private const double DroneIconScale = 0.7;
+
 
     // Geometrie Ikon (Material Design paths)
     private const string IconBoxPath = "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15Z M5,15.91L11,19.29V12.58L5,9.21V15.91Z M19,15.91V9.21L13,12.58V19.29L19,15.91Z";
@@ -144,11 +145,11 @@ public partial class MainWindow : Window
         _mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
         
         // Warstwa tras (pod dronami)
-        _routeLayer = new MemoryLayer { Name = "Routes" };
+        _routeLayer = new MemoryLayer { Name = "Routes", Style = null };
         _mapControl.Map.Layers.Add(_routeLayer);
         
         // Warstwa dronów (na wierzchu)
-        _droneLayer = new MemoryLayer { Name = "Drones" };
+        _droneLayer = new MemoryLayer { Name = "Drones", Style = null };
         _mapControl.Map.Layers.Add(_droneLayer);
 
         var center = SphericalMercator.FromLonLat(21.0122, 52.2297);
@@ -537,7 +538,7 @@ public partial class MainWindow : Window
         _pinSvgUri ??= GetSvgUri("pin.svg");
         var pinUri = _pinSvgUri;
         
-        // Pin Start (czerwony - miejsce nadania)
+        // Pin Start - renderuj wyłącznie z pin.svg (zwróćmy się do oryginalnego obrazka)
         var startPin = new PointFeature(new MPoint(start.x, start.y));
         if (pinUri != null)
         {
@@ -548,20 +549,9 @@ public partial class MainWindow : Window
                 RelativeOffset = new RelativeOffset(0.0, PinOffsetY)  // Czubek pinezki na punkcie
             });
         }
-        else
-        {
-            // Fallback - czerwone kółko
-            startPin.Styles.Add(new SymbolStyle
-            {
-                Fill = new MBrush(MColor.FromString("#EF4444")),
-                SymbolScale = 1.2,
-                SymbolType = SymbolType.Ellipse,
-                Outline = new MPen { Color = MColor.White, Width = 3 }
-            });
-        }
         features.Add(startPin);
 
-        // Pin Cel (czerwony - miejsce dostawy)
+        // Pin Cel - renderuj wyłącznie z pin.svg
         var endPin = new PointFeature(new MPoint(end.x, end.y));
         if (pinUri != null)
         {
@@ -570,17 +560,6 @@ public partial class MainWindow : Window
                 Image = pinUri,
                 SymbolScale = PinScale,
                 RelativeOffset = new RelativeOffset(0.0, PinOffsetY)  // Czubek pinezki na punkcie
-            });
-        }
-        else
-        {
-            // Fallback - czerwone kółko
-            endPin.Styles.Add(new SymbolStyle
-            {
-                Fill = new MBrush(MColor.FromString("#EF4444")),
-                SymbolScale = 1.2,
-                SymbolType = SymbolType.Ellipse,
-                Outline = new MPen { Color = MColor.White, Width = 3 }
             });
         }
         features.Add(endPin);
@@ -648,14 +627,99 @@ public partial class MainWindow : Window
         // Sekcja Dat
         var datesGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*, 20, *") };
         
-        var d1 = CreateDatePicker("Data Nadania", _viewModel.SendDate.DateTime, s => { _viewModel.SendDate = s; });
+        var d1 = CreateDatePicker("Data Nadania", "SendDate");
         Grid.SetColumn(d1, 0);
         datesGrid.Children.Add(d1);
 
-        var d2 = CreateDatePicker("Oczekiwana Dostawa", _viewModel.DeliverDate.DateTime, s => { _viewModel.DeliverDate = s; });
+        var d2 = CreateDatePicker("Oczekiwana Dostawa", "DeliverDate");
         Grid.SetColumn(d2, 2);
         datesGrid.Children.Add(d2);
 
+        // Walidacja dat nadania i dostawy (przywracanie poprzedniej wartości i komunikat)
+        var sendDatePicker = d1.Children.OfType<CalendarDatePicker>().FirstOrDefault();
+        var deliverDatePicker = d2.Children.OfType<CalendarDatePicker>().FirstOrDefault();
+
+        DateTime? lastSendDate = sendDatePicker?.SelectedDate;
+        DateTime? lastDeliverDate = deliverDatePicker?.SelectedDate;
+        bool suppressSendHandler = false;
+        bool suppressDeliverHandler = false;
+
+        if (sendDatePicker != null)
+        {
+            // Validate only after user interaction (click) or when focus is lost — avoid validating on hover
+            void ValidateSendDate()
+            {
+                if (suppressSendHandler) return;
+                var newDate = sendDatePicker.SelectedDate;
+                if (newDate.HasValue && newDate.Value.Date < DateTime.Today)
+                {
+                    suppressSendHandler = true;
+                    sendDatePicker.SelectedDate = lastSendDate ?? DateTime.Today;
+                    suppressSendHandler = false;
+                    _ = ShowValidationErrorAsync("Data nadania nie może być wcześniejsza niż dzisiaj.");
+                }
+                else
+                {
+                    lastSendDate = newDate;
+                    if (deliverDatePicker != null && deliverDatePicker.SelectedDate.HasValue && lastSendDate.HasValue && deliverDatePicker.SelectedDate.Value.Date < lastSendDate.Value.Date)
+                    {
+                        suppressDeliverHandler = true;
+                        deliverDatePicker.SelectedDate = lastSendDate;
+                        suppressDeliverHandler = false;
+                        _ = ShowValidationErrorAsync("Data dostawy nie może być wcześniejsza niż data nadania.");
+                    }
+                }
+            }
+
+            sendDatePicker.PointerReleased += (s, e) => ValidateSendDate();
+            sendDatePicker.LostFocus += (s, e) => ValidateSendDate();
+        }
+
+        if (deliverDatePicker != null)
+        {
+            void ValidateDeliverDate()
+            {
+                if (suppressDeliverHandler) return;
+
+                var newDate = deliverDatePicker.SelectedDate;
+                var minAllowed = lastSendDate ?? DateTime.Today;
+                if (newDate.HasValue && newDate.Value.Date < minAllowed.Date)
+                {
+                    suppressDeliverHandler = true;
+                    deliverDatePicker.SelectedDate = lastDeliverDate ?? minAllowed;
+                    suppressDeliverHandler = false;
+                    _ = ShowValidationErrorAsync("Data dostawy nie może być wcześniejsza niż data nadania.");
+                }
+                else
+                {
+                    lastDeliverDate = newDate;
+                }
+            }
+
+            deliverDatePicker.PointerReleased += (s, e) => ValidateDeliverDate();
+            deliverDatePicker.LostFocus += (s, e) => ValidateDeliverDate();
+        }
+
+        // Lokalna asynchroniczna metoda dialogowa (lokalna funkcja, bez modyfikatora)
+        async Task ShowValidationErrorAsync(string message)
+        {
+            var dialog = new Window
+            {
+                Title = "Błąd walidacji",
+                Width = 360,
+                Height = 160,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+            stack.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+            var okBtn = new Button { Content = "OK", HorizontalAlignment = HorizontalAlignment.Center, Width = 80 };
+            okBtn.Click += (ss, ee) => dialog.Close();
+            stack.Children.Add(okBtn);
+            dialog.Content = stack;
+
+            await dialog.ShowDialog(this);
+        }
         centerPanel.Children.Add(datesGrid);
 
         // Sekcja Wagi
@@ -663,7 +727,7 @@ public partial class MainWindow : Window
         weightPanel.Children.Add(new TextBlock { Text = "Waga Paczki", FontSize = 14, Foreground = TextLightBrush });
         
         var wGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*, Auto") };
-        var slider = new Slider { Minimum = 0.5, Maximum = 20, Value = 1.0, Foreground = PrimaryBrush };
+        var slider = new Slider { Minimum = 0.5, Maximum = 5, Value = 1.0, Foreground = PrimaryBrush };
         slider.Bind(Slider.ValueProperty, new Binding("SliderWeight"));
         Grid.SetColumn(slider, 0);
         wGrid.Children.Add(slider);
@@ -736,24 +800,35 @@ public partial class MainWindow : Window
         
         submitBtn.Click += async (s, e) =>
         {
+            // Zapobieganie wielokrotnym kliknięciom
+            if (!submitBtn.IsEnabled) return;
+
             try
             {
                 if (_viewModel.SendPackageCommand.CanExecute(null))
                 {
-                    ShowLoading("Wysyłanie paczki...");
                     submitBtn.IsEnabled = false;
+                    ShowLoading("Wysyłanie paczki...");
                     
-                    await Task.Delay(300); // Krótkie opóźnienie dla efektu wizualnego
+                    // Krótkie opóźnienie dla UX
+                    await Task.Delay(300); 
+                    
+                    // Wykonanie komendy. Jeśli wystąpi błąd walidacji w ViewModel,
+                    // zostanie wyświetlony alert (przez ErrorOccurred), a zadanie się zakończy.
                     await _viewModel.SendPackageCommand.ExecuteAsync(null);
-                    
-                    // Loading zostanie ukryty przez OnOrderAdded gdy przejdziemy na mapę
                 }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Button error: {ex.Message}");
+            }
+            finally
+            {
+                // KLUCZOWA POPRAWKA:
+                // Zawsze ukrywamy loading i odblokowujemy przycisk po zakończeniu operacji.
+                // Niezależnie czy sukces (przejście na mapę), czy błąd walidacji.
                 HideLoading();
                 submitBtn.IsEnabled = true;
-                System.Diagnostics.Debug.WriteLine($"Button error: {ex.Message}");
             }
         };
         
@@ -791,14 +866,13 @@ public partial class MainWindow : Window
         return tb;
     }
 
-    private StackPanel CreateDatePicker(string label, DateTime initialDate, Action<DateTimeOffset> onChange)
+    private StackPanel CreateDatePicker(string label, string bindingPath)
     {
         var s = new StackPanel { Spacing = 8 };
         s.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = TextLightBrush, FontWeight = FontWeight.SemiBold });
         
         var picker = new CalendarDatePicker 
         { 
-            SelectedDate = initialDate,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Background = AvBrushes.White,
             Foreground = TextDarkBrush,
@@ -807,13 +881,10 @@ public partial class MainWindow : Window
             CornerRadius = new CornerRadius(5)
         };
         
-        // Użyj zdarzenia SelectedDateChanged dla CalendarDatePicker
-        picker.SelectedDateChanged += (sender, e) => {
-            if (picker.SelectedDate.HasValue)
-            {
-                onChange(new DateTimeOffset(picker.SelectedDate.Value));
-            }
-        };
+        picker.Bind(CalendarDatePicker.SelectedDateProperty, new Binding(bindingPath)
+        {
+            Mode = BindingMode.TwoWay
+        });
         
         s.Children.Add(picker);
         return s;
@@ -910,7 +981,7 @@ public partial class MainWindow : Window
                 Fill = new MBrush(MColor.FromString("#3B82F6")),  // Niebieski
                 SymbolScale = DroneBackdropScale,
                 SymbolType = SymbolType.Ellipse,
-                Outline = new MPen { Color = MColor.White, Width = 4 }
+                        Outline = new MPen { Color = MColor.White, Width = 0.5 }
             });
             
             // Ikona drona SVG lub fallback trójkąt
@@ -920,7 +991,6 @@ public partial class MainWindow : Window
                 {
                     Image = droneUri,
                     SymbolScale = DroneIconScale,
-                    SymbolRotation = angle
                 });
             }
             else
