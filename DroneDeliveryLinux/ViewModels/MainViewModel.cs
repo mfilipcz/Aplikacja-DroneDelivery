@@ -101,26 +101,14 @@ public partial class MainViewModel : ObservableObject
             return;
         }
         
-        // Cena bazowa
-        decimal basePrice = 10.0m;
+        // Algorytm zgodny z wersją Mac:
+        // Waga * 10 + Szybkość (50 / (dni + 1)) + Baza 20
         
-        // Skalowanie wagi: im cięższa paczka, tym drożej
-        // 0.5kg = +1 PLN, 2.5kg = +5 PLN, 5kg = +10 PLN
-        decimal weightCost = (decimal)weight * 2.0m;
+        decimal weightCost = (decimal)weight * 10.0m;
+        decimal speedCost = 50.0m / (days + 1);
+        decimal basePrice = 20.0m;
         
-        // Skalowanie terminu: im bliższy termin, tym drożej
-        // Dzień 0 (ten sam dzień) = +100 PLN
-        // Dzień 1 = +90 PLN
-        // Dzień 2 = +80 PLN
-        // ...
-        // Dzień 10+ = +0 PLN (najtaniej)
-        decimal timeCost = 0.0m;
-        if (days < 10)
-        {
-            timeCost = (10 - days) * 10.0m;
-        }
-        
-        decimal totalPrice = basePrice + weightCost + timeCost;
+        decimal totalPrice = basePrice + weightCost + speedCost;
         
         LabelCost = $"Koszt: {totalPrice:F2} PLN";
     }
@@ -340,61 +328,52 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            double distanceKm = CalculateDistanceKm(o.OriginLat, o.OriginLng, o.DestLat, o.DestLng);
-            
-            // Stała prędkość drona: 100 km/h
-            // W symulacji: 1 km = 0.5 sekundy (przyspieszenie x7200)
-            // Minimalna długość lotu: 5 sekund, maksymalna: 60 sekund
-            const double droneSpeedKmh = 100.0;
-            const double simulationSpeedMultiplier = 0.5; // sekund na km w symulacji
-            const int delayMs = 50; // opóźnienie między krokami dla płynnej animacji
-            
-            // Oblicz czas lotu w sekundach symulacji
-            double flightTimeSeconds = distanceKm * simulationSpeedMultiplier;
-            flightTimeSeconds = Math.Max(5, Math.Min(60, flightTimeSeconds)); // Limit 5-60 sekund
-            
-            // Oblicz liczbę kroków
-            int totalSteps = (int)(flightTimeSeconds * 1000 / delayMs);
-            int startStep = (int)(o.Progress * totalSteps);
-
-            // Fazy lotu (w procentach całego lotu)
-            double phasePackaging = 0.03;   // Pakowanie: 0-3%
-            double phaseTakeoff = 0.08;     // Startowanie: 3-8%
-            double phaseLanding = 0.95;     // Lądowanie: 95-100%
-
-            for (int i = startStep; i <= totalSteps; i++)
-            {
-                if (o.Status == "✅ Dostarczono") break;
-
-                await Task.Delay(delayMs);
-                double pct = (double)i / totalSteps;
-
-                // Oblicz pozostały dystans
-                double remainingKm = distanceKm * (1 - pct);
-
-                string newStatus;
-                if (pct < phasePackaging) 
-                    newStatus = "📦 Pakowanie...";
-                else if (pct < phaseTakeoff) 
-                    newStatus = "🚁 Startowanie...";
-                else if (pct < phaseLanding) 
-                    newStatus = $"✈️ W locie ({droneSpeedKmh:F0} km/h) - {remainingKm:F1}km";
-                else if (pct < 1.0) 
-                    newStatus = "🛬 Lądowanie...";
-                else 
-                    newStatus = "✅ Dostarczono";
-
-                o.Status = newStatus;
-                o.CurrentLat = o.OriginLat + (o.DestLat - o.OriginLat) * pct;
-                o.CurrentLng = o.OriginLng + (o.DestLng - o.OriginLng) * pct;
-                o.Progress = pct;
-
-                if (i % 20 == 0) await _grpcService.UpdateOrderAsync(o);
-            }
-            
-            o.Status = "✅ Dostarczono";
-            o.Progress = 1.0;
+            // Ustaw status początkowy zgodny z Mac, ale z emoji
+            o.Status = "✈️ W drodze";
             await _grpcService.UpdateOrderAsync(o);
+
+            while (true)
+            {
+                // Sprawdź czy nie anulowano (np. usunięto paczkę)
+                // W tej implementacji MainViewModel zarządzanie anulowaniem jest trudniejsze,
+                // ale zakładamy, że pętla przerwie się przy błędzie update lub można dodać flagę.
+                // Mac po prostu robi to w pętli Tick. Tutaj mamy Task per Order.
+                
+                double dLat = o.DestLat - o.CurrentLat;
+                double dLng = o.DestLng - o.CurrentLng;
+                
+                // Obliczamy dystans (prosta euklidesowa)
+                double distance = Math.Sqrt(dLat * dLat + dLng * dLng);
+                double speed = 0.0015; // Prędkość drona na cykl (zgodna z Mac)
+
+                // Jeśli jesteśmy bardzo blisko celu -> Dostarczono
+                if (distance < speed)
+                {
+                    o.Status = "✅ Dostarczono";
+                    o.CurrentLat = o.DestLat;
+                    o.CurrentLng = o.DestLng;
+                    o.Progress = 1.0;
+                    await _grpcService.UpdateOrderAsync(o);
+                    break;
+                }
+                else
+                {
+                    // Przesuwamy drona w stronę celu
+                    double moveLat = (dLat / distance) * speed;
+                    double moveLng = (dLng / distance) * speed;
+
+                    o.CurrentLat += moveLat;
+                    o.CurrentLng += moveLng;
+                    
+                    o.Progress += 0.02;
+                    if (o.Progress > 1) o.Progress = 0.99;
+                    
+                    await _grpcService.UpdateOrderAsync(o);
+                }
+                
+                // Opóźnienie zgodne z Mac (500ms)
+                await Task.Delay(500);
+            }
         }
         catch (Exception ex)
         {
