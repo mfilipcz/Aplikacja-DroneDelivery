@@ -9,83 +9,116 @@ public partial class AdminPage : ContentPage
 
     public AdminPage(DroneService.DroneServiceClient client, ClientSession session)
     {
-        InitializeComponent(); // Tu był błąd wcześniej przez brak Convertera
+        InitializeComponent();
         _client = client;
         _session = session;
+        LoadOrders(); // Startujemy od paczek
     }
 
-    // Ładujemy dane dopiero gdy strona się wyświetli (bezpieczniej niż w konstruktorze)
-    protected override async void OnAppearing()
+    // --- ZAKŁADKI ---
+    private void OnTabChanged(object sender, EventArgs e)
     {
-        base.OnAppearing();
-        await LoadData();
+        var btn = sender as Button;
+        if (btn == TabOrdersBtn)
+        {
+            OrdersView.IsVisible = true;
+            UsersView.IsVisible = false;
+            
+            // Kolorowanie przycisków
+            TabOrdersBtn.BackgroundColor = Color.FromArgb("#6200EE"); TabOrdersBtn.TextColor = Colors.White;
+            TabUsersBtn.BackgroundColor = Colors.LightGray; TabUsersBtn.TextColor = Colors.Black;
+            LoadOrders();
+        }
+        else
+        {
+            OrdersView.IsVisible = false;
+            UsersView.IsVisible = true;
+
+            TabUsersBtn.BackgroundColor = Color.FromArgb("#6200EE"); TabUsersBtn.TextColor = Colors.White;
+            TabOrdersBtn.BackgroundColor = Colors.LightGray; TabOrdersBtn.TextColor = Colors.Black;
+            LoadUsers();
+        }
     }
 
-    private async Task LoadData()
+    // --- LOGIKA PACZEK ---
+    private async void LoadOrders()
     {
         try
         {
             var response = await _client.GetAllOrdersAsync(new Empty());
             OrdersList.ItemsSource = response.Orders;
+            OrdersView.IsRefreshing = false;
         }
-        catch (Exception ex)
+        catch (Exception ex) { await DisplayAlert("Błąd", ex.Message, "OK"); }
+    }
+    
+    private void OnRefreshOrders(object sender, EventArgs e) => LoadOrders();
+
+    private async void OnApproveClicked(object sender, EventArgs e) => await ChangeStatus(sender, "W drodze");
+    private async void OnRejectClicked(object sender, EventArgs e) => await ChangeStatus(sender, "Odrzucono");
+
+    private async Task ChangeStatus(object sender, string status)
+    {
+        var btn = sender as Button;
+        var id = btn?.CommandParameter as string;
+        if(id != null)
         {
-            await DisplayAlert("Błąd", $"Nie udało się pobrać paczek: {ex.Message}", "OK");
+            await _client.UpdateOrderStatusAsync(new StatusRequest { OrderId = id, NewStatus = status, IsAdmin = true });
+            LoadOrders();
         }
     }
 
-    private void OnRefreshClicked(object sender, EventArgs e) => _ = LoadData();
-
-    private async void OnApproveClicked(object sender, EventArgs e)
+    // --- LOGIKA UŻYTKOWNIKÓW ---
+    private async void LoadUsers()
     {
-        var button = sender as Button;
-        var orderId = button?.CommandParameter as string;
-        await UpdateStatus(orderId, "W drodze");
-    }
-
-    private async void OnRejectClicked(object sender, EventArgs e)
-    {
-        var button = sender as Button;
-        var orderId = button?.CommandParameter as string;
-        await UpdateStatus(orderId, "Odrzucono");
-    }
-
-    private async Task UpdateStatus(string orderId, string status)
-    {
-        if (string.IsNullOrEmpty(orderId)) return;
-
         try
         {
-            var response = await _client.UpdateOrderStatusAsync(new StatusRequest 
-            { 
-                OrderId = orderId, 
-                NewStatus = status, 
-                IsAdmin = true 
-            });
-
-            if (response.Success)
-            {
-                await LoadData(); // Odśwież listę po zmianie
-            }
+            var response = await _client.GetAllUsersAsync(new Empty());
+            UsersList.ItemsSource = response.Users;
         }
-        catch (Exception ex)
+        catch (Exception ex) { await DisplayAlert("Błąd", ex.Message, "OK"); }
+    }
+
+    private async void OnAddUserClicked(object sender, EventArgs e)
+    {
+        string username = NewUserEntry.Text;
+        if(string.IsNullOrWhiteSpace(username)) return;
+
+        // Szybkie dodawanie z domyślnym hasłem "user"
+        var result = await _client.RegisterUserAsync(new RegisterUserRequest { Username = username, Password = "user" });
+        if (result.Success)
         {
-            await DisplayAlert("Błąd", ex.Message, "OK");
+            NewUserEntry.Text = "";
+            LoadUsers();
+            await DisplayAlert("Sukces", $"Dodano użytkownika: {username}\nHasło: user", "OK");
+        }
+        else await DisplayAlert("Błąd", result.Message, "OK");
+    }
+
+    private async void OnDeleteUserClicked(object sender, EventArgs e)
+    {
+        var btn = sender as Button;
+        var username = btn?.CommandParameter as string;
+        
+        bool answer = await DisplayAlert("Usuwanie", $"Usunąć użytkownika {username}?", "Tak", "Nie");
+        if (answer)
+        {
+            var result = await _client.DeleteUserAsync(new UserRequest { Username = username });
+            if (result.Success) LoadUsers();
+            else await DisplayAlert("Błąd", result.Message, "OK");
         }
     }
 
-    // --- LOGIKA WYLOGOWANIA ---
+    // --- WYLOGOWANIE (POPRAWKA DLA .NET 9) ---
     private void OnLogoutClicked(object sender, EventArgs e)
     {
-        // 1. Czyścimy sesję w RAM
         _session.ClientId = null;
         _session.IsAdmin = false;
-
-        // 2. WAŻNE: Czyścimy zapamiętane logowanie w telefonie (z symulatora)
-        // Musisz użyć TEGO SAMEGO klucza co w DroneSimulatorService
         Preferences.Remove("moje_id_klienta_v2");
-
-        // 3. Wracamy do ekranu logowania
-        Application.Current.MainPage = new NavigationPage(new LoginPage(_client, _session));
+        
+        if (Application.Current != null && Application.Current.Windows.Count > 0)
+        {
+            Application.Current.Windows[0].Page = new NavigationPage(new LoginPage(_client, _session));
+        }
     }
 }

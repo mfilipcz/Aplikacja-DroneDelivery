@@ -29,15 +29,21 @@ public partial class LoginPage : ContentPage
                 _session.ClientId = response.ClientId;
                 _session.IsAdmin = response.Role == "admin";
 
-                // Zapamiętaj ID dla symulatora (opcjonalne, ale pomocne)
+                // Zapamiętaj ID
                 Preferences.Set("moje_id_klienta_v2", _session.ClientId);
 
-                if (_session.IsAdmin)
-                    Application.Current.MainPage = new NavigationPage(new AdminPage(_client, _session));
-                else
+                // --- POPRAWKA DLA .NET 9 (Eliminacja ostrzeżeń) ---
+                if (Application.Current != null && Application.Current.Windows.Count > 0)
                 {
-                    var simulator = new DroneSimulatorService(_client, _session);
-                    Application.Current.MainPage = new NavigationPage(new MainPage(_client, simulator, _session));
+                    if (_session.IsAdmin)
+                    {
+                        Application.Current.Windows[0].Page = new NavigationPage(new AdminPage(_client, _session));
+                    }
+                    else
+                    {
+                        var simulator = new DroneSimulatorService(_client, _session);
+                        Application.Current.Windows[0].Page = new NavigationPage(new MainPage(_client, simulator, _session));
+                    }
                 }
             }
             else
@@ -51,7 +57,6 @@ public partial class LoginPage : ContentPage
         }
     }
 
-    // --- NOWA METODA REJESTRACJI ---
     private async void OnRegisterClicked(object sender, EventArgs e)
     {
         string login = LoginEntry.Text;

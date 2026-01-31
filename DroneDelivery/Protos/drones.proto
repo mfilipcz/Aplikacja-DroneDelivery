@@ -5,58 +5,42 @@ option csharp_namespace = "DroneServer";
 package drones;
 
 service DroneService {
-  // Logowanie (sprawdza w bazie)
+  // --- UŻYTKOWNICY ---
   rpc Login (LoginRequest) returns (LoginResponse);
-  
-  // NOWE: Rejestracja użytkownika (zakładanie konta)
   rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  
+  // NOWE: Zarządzanie użytkownikami
+  rpc GetAllUsers (Empty) returns (UserList);
+  rpc DeleteUser (UserRequest) returns (ServerResponse);
 
-  // Dla Admina
-  rpc GetAllOrders (Empty) returns (OrderList);
-  rpc UpdateOrderStatus (StatusRequest) returns (ServerResponse);
-
-  // Operacje na paczkach
+  // --- PACZKI ---
+  rpc GetAllOrders (Empty) returns (OrderList); // Admin
+  rpc UpdateOrderStatus (StatusRequest) returns (ServerResponse); // Admin
+  
   rpc GetOrders (ClientRequest) returns (OrderList);
   rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
   rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
   rpc DeleteOrder (DeleteRequest) returns (ServerResponse);
   
-  // Stare (dla kompatybilności wstecznej, można zostawić)
+  // Stare/Kompatybilność
   rpc RegisterClient (ClientInfo) returns (RegisterResponse);
 }
 
 message Empty {}
 
-// --- NOWE STRUKTURY ---
-message RegisterUserRequest {
-  string username = 1;
-  string password = 2;
-}
+// --- WIADOMOŚCI UŻYTKOWNIKÓW ---
+message LoginRequest { string username = 1; string password = 2; }
+message LoginResponse { bool success = 1; string role = 2; string clientId = 3; string message = 4; }
 
-message RegisterUserResponse {
-  bool success = 1;
-  string message = 2;
-}
-// ----------------------
+message RegisterUserRequest { string username = 1; string password = 2; }
+message RegisterUserResponse { bool success = 1; string message = 2; }
 
-message LoginRequest {
-  string username = 1;
-  string password = 2;
-}
+message UserList { repeated UserMsg users = 1; }
+message UserMsg { int32 id = 1; string username = 2; string role = 3; }
+message UserRequest { string username = 1; }
 
-message LoginResponse {
-  bool success = 1;
-  string role = 2;     
-  string clientId = 3; 
-  string message = 4;
-}
-
-message StatusRequest {
-  string orderId = 1;
-  string newStatus = 2;
-  bool isAdmin = 3;
-}
-
+// --- WIADOMOŚCI PACZEK ---
+message StatusRequest { string orderId = 1; string newStatus = 2; bool isAdmin = 3; }
 message ClientInfo { string platform = 1; }
 message RegisterResponse { bool success = 1; string clientId = 2; }
 message ClientRequest { string clientId = 1; }
