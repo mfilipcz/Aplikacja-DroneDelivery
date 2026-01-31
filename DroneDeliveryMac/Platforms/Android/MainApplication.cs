@@ -1,7 +1,7 @@
 ﻿using Android.App;
 using Android.Runtime;
 
-namespace DroneDeliveryMac;
+namespace DroneDelivery;
 
 [Application]
 public class MainApplication : MauiApplication

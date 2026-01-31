@@ -1,7 +1,7 @@
 ﻿using ObjCRuntime;
 using UIKit;
 
-namespace DroneDeliveryMac;
+namespace DroneDelivery;
 
 public class Program
 {

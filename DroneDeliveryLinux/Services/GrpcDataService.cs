@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Threading;
+using System.IO;
 
 namespace DroneDeliveryLinux.Services;
 
@@ -13,6 +14,7 @@ public class GrpcDataService
 {
     private readonly DroneService.DroneServiceClient _client;
     private string _clientId = "";
+    private const string ClientIdFile = "client_id.txt";
     
     public string ClientId => _clientId;
 
@@ -44,11 +46,27 @@ public class GrpcDataService
     {
         try
         {
+            // 1. Sprawdź, czy mamy zapisane ID
+            if (File.Exists(ClientIdFile))
+            {
+                var savedId = await File.ReadAllTextAsync(ClientIdFile);
+                if (!string.IsNullOrWhiteSpace(savedId))
+                {
+                    _clientId = savedId.Trim();
+                    Console.WriteLine($"[KLIENT] Przywrócono ID: {_clientId}");
+                    return true;
+                }
+            }
+
+            // 2. Jeśli nie, zarejestruj nowe
             var response = await _client.RegisterClientAsync(new ClientInfo { Platform = "Linux" });
             if (response.Success)
             {
                 _clientId = response.ClientId;
                 Console.WriteLine($"[KLIENT] Zarejestrowano jako: {_clientId}");
+                
+                // 3. Zapisz ID do pliku
+                await File.WriteAllTextAsync(ClientIdFile, _clientId);
                 return true;
             }
             return false;

@@ -1,6 +1,6 @@
 ﻿using Foundation;
 
-namespace DroneDeliveryMac;
+namespace DroneDelivery;
 
 [Register("AppDelegate")]
 public class AppDelegate : MauiUIApplicationDelegate

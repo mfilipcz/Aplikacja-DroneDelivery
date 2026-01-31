@@ -959,11 +959,12 @@ public partial class MainWindow : Window
         _droneSvgUri ??= GetSvgUri("drone.svg");
         var droneUri = _droneSvgUri;
 
-        // Szukaj aktywnie lecącego drona (pierwszy, który nie jest dostarczony)
+        // Rysujemy WSZYSTKIE aktywne drony (nie tylko wybrany)
         var allOrders = _viewModel.OutgoingOrders.Concat(_viewModel.IncomingOrders);
 
         foreach (var order in allOrders)
         {
+            // Pomiń dostarczone
             if (order.Status.Contains("Dostarczono")) continue;
 
             var current = SphericalMercator.FromLonLat(order.CurrentLng, order.CurrentLat);
@@ -981,7 +982,7 @@ public partial class MainWindow : Window
                 Fill = new MBrush(MColor.FromString("#3B82F6")),  // Niebieski
                 SymbolScale = DroneBackdropScale,
                 SymbolType = SymbolType.Ellipse,
-                        Outline = new MPen { Color = MColor.White, Width = 0.5 }
+                Outline = new MPen { Color = MColor.White, Width = 0.5 }
             });
             
             // Ikona drona SVG lub fallback trójkąt
@@ -1005,8 +1006,6 @@ public partial class MainWindow : Window
                 });
             }
             features.Add(droneFeature);
-            
-            break; // Obsługujemy jednego drona naraz (jak na Mac)
         }
 
         _droneLayer.Features = features;

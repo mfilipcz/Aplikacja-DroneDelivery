@@ -1,4 +1,4 @@
-﻿namespace DroneDeliveryMac;
+﻿namespace DroneDelivery;
 
 public partial class AppShell : Shell
 {
