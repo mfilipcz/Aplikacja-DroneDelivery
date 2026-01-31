@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DroneDeliveryLinux.ViewModels"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
+             x:Class="DroneDeliveryLinux.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+  
+  <Border Background="#F3F4F6">
+    <Border Background="White" CornerRadius="10" Padding="40" 
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            BoxShadow="0 4 10 0 #20000000" Width="400">
+      
+      <StackPanel Spacing="20">
+        <!-- Header -->
+        <StackPanel Spacing="10" HorizontalAlignment="Center">
+           <!-- Logo -->
+           <svg:Svg Path="/Assets/drone.svg" Width="100" Height="100"/>
+           <TextBlock Text="Drone Delivery" FontSize="24" FontWeight="Bold" Foreground="#1a1a1a" HorizontalAlignment="Center"/>
+           <TextBlock Text="Zaloguj się do systemu" FontSize="14" Foreground="#757575" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Form -->
+        <StackPanel Spacing="15" Margin="0,20,0,0">
+           <TextBox Watermark="Nazwa użytkownika" Text="{Binding Username}" Height="40"/>
+           <TextBox Watermark="Hasło" PasswordChar="*" Text="{Binding Password}" Height="40"/>
+        </StackPanel>
+
+        <!-- Error/Status Message -->
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="{Binding MessageColor}" TextWrapping="Wrap" 
+                   HorizontalAlignment="Center" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <!-- Buttons -->
+        <StackPanel Spacing="10" Margin="0,10,0,0">
+           <Button Command="{Binding LoginCommand}" Content="ZALOGUJ SIĘ" IsDefault="True"
+                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                   Height="45" Background="#512BD4" Foreground="White" FontWeight="Bold"
+                   IsEnabled="{Binding !IsBusy}"/>
+           
+           <Button Command="{Binding RegisterCommand}" Content="Zarejestruj nowe konto" 
+                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                   Background="Transparent" Foreground="#512BD4" BorderThickness="0"
+                   IsEnabled="{Binding !IsBusy}"/>
+        </StackPanel>
+
+        <!-- Spinner -->
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" HorizontalAlignment="Stretch" Height="4" Foreground="#512BD4"/>
+
+      </StackPanel>
+    </Border>
+  </Border>
+</UserControl>

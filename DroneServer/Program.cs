@@ -24,6 +24,17 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DroneDbContext>();
     db.Database.EnsureCreated();
+
+    // Seeding
+    if (!db.Users.Any(u => u.Username == "admin"))
+    {
+        db.Users.Add(new UserEntity { Username = "admin", Password = "admin", Role = "Admin" });
+    }
+    if (!db.Users.Any(u => u.Username == "user"))
+    {
+        db.Users.Add(new UserEntity { Username = "user", Password = "user", Role = "User" });
+    }
+    db.SaveChanges();
 }
 
 app.MapGrpcService<DroneApiService>();

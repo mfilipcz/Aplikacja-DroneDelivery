@@ -28,6 +28,9 @@ public class DroneOrder : INotifyPropertyChanged
     public DateTime SendDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool IsIncoming { get; set; } = false;
+    public string Username { get; set; } = string.Empty;
+
+    public bool IsDelivered => Status == "Dostarczono";
 
     public string Status
     {
@@ -38,6 +41,7 @@ public class DroneOrder : INotifyPropertyChanged
             {
                 _status = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsDelivered));
             }
         }
     }

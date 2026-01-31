@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DroneDeliveryLinux.ViewModels"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
+             x:Class="DroneDeliveryLinux.Views.AdminView"
+             x:DataType="vm:AdminViewModel">
+
+  <Grid RowDefinitions="Auto, *">
+    <!-- Navbar -->
+    <Border Grid.Row="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20">
+      <Grid ColumnDefinitions="Auto, *, Auto">
+        <StackPanel Orientation="Horizontal" Spacing="15">
+           <svg:Svg Path="/Assets/drone.svg" Width="40" Height="40"/>
+           <TextBlock Text="Panel Administratora" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+        </StackPanel>
+        
+        <Button Grid.Column="2" Content="Wyloguj" Command="{Binding LogoutCommand}" Background="#F3F4F6" Foreground="Black"/>
+      </Grid>
+    </Border>
+
+    <!-- Content -->
+    <TabControl Grid.Row="1" Margin="20">
+      
+      <!-- TAB 1: PACZKI -->
+      <TabItem Header="Zarządzanie Paczkami">
+        <Grid RowDefinitions="Auto, *">
+           <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,10">
+              <Button Content="Odśwież" Command="{Binding RefreshOrdersCommand}"/>
+           </StackPanel>
+           
+           <DataGrid Grid.Row="1" ItemsSource="{Binding AllOrders}" AutoGenerateColumns="False" 
+                     IsReadOnly="True" GridLinesVisibility="Horizontal" Background="White">
+              <DataGrid.Columns>
+                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80"/>
+                 <DataGridTextColumn Header="Użytkownik" Binding="{Binding Username}" Width="120"/>
+                 <DataGridTextColumn Header="Nadawca" Binding="{Binding OriginAddress}" Width="*"/>
+                 <DataGridTextColumn Header="Odbiorca" Binding="{Binding DestinationAddress}" Width="*"/>
+                 <DataGridTemplateColumn Header="Status" Width="200">
+                    <DataGridTemplateColumn.CellTemplate>
+                       <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Margin="5,0">
+                             <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="{Binding IsDelivered, Converter={x:Static ObjectConverters.IsNull}}"/> 
+                             <!-- Simple trick: if IsDelivered is true, show green icon -->
+                             <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" 
+                                       Foreground="Green" 
+                                       IsVisible="{Binding IsDelivered}"
+                                       Width="16" Height="16"/>
+                          </StackPanel>
+                       </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                 </DataGridTemplateColumn>
+                 <DataGridTemplateColumn Header="Akcje" Width="200">
+                    <DataGridTemplateColumn.CellTemplate>
+                       <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                              <Button Content="Zatwierdź" 
+                                      Command="{Binding $parent[UserControl].DataContext.ApproveOrderCommand}"
+                                      CommandParameter="{Binding}"
+                                      HorizontalContentAlignment="Center"
+                                      IsEnabled="{Binding !IsDelivered}"
+                                      Background="#10B981" Foreground="White"/>
+                              <Button Content="Odrzuć" 
+                                      Command="{Binding $parent[UserControl].DataContext.RejectOrderCommand}"
+                                      CommandParameter="{Binding}"
+                                      HorizontalContentAlignment="Center"
+                                      Background="#EF4444" Foreground="White"/>
+                          </StackPanel>
+                       </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                 </DataGridTemplateColumn>
+              </DataGrid.Columns>
+           </DataGrid>
+        </Grid>
+      </TabItem>
+
+      <!-- TAB 2: UŻYTKOWNICY -->
+      <TabItem Header="Użytkownicy">
+         <Grid RowDefinitions="Auto, *">
+           <StackPanel Orientation="Vertical" Spacing="10" Margin="0,0,0,10">
+               <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Content="Odśwież" Command="{Binding RefreshUsersCommand}"/>
+                  <Button Content="Usuń wybranego" Command="{Binding DeleteUserCommand}" 
+                          IsEnabled="{Binding SelectedUser, Converter={x:Static ObjectConverters.IsNotNull}}" Background="#EF4444" Foreground="White"/>
+               </StackPanel>
+               
+               <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Text="Nowy użytkownik:" VerticalAlignment="Center"/>
+                  <TextBox Watermark="Login" Text="{Binding NewUsername}" Width="150"/>
+                  <TextBox Watermark="Hasło" Text="{Binding NewPassword}" Width="150"/>
+                  <Button Content="Dodaj" Command="{Binding AddUserCommand}" Background="#512BD4" Foreground="White"/>
+               </StackPanel>
+           </StackPanel>
+
+           <DataGrid Grid.Row="1" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" 
+                     AutoGenerateColumns="False" IsReadOnly="True" Background="White">
+              <DataGrid.Columns>
+                 <DataGridTextColumn Header="Nazwa użytkownika" Binding="{Binding Username}" Width="*"/>
+                 <DataGridTextColumn Header="Rola" Binding="{Binding Role}" Width="150"/>
+              </DataGrid.Columns>
+           </DataGrid>
+         </Grid>
+      </TabItem>
+      
+    </TabControl>
+  </Grid>
+</UserControl>

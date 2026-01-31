@@ -6,27 +6,26 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Threading;
-using System.IO;
 
 namespace DroneDeliveryLinux.Services;
 
 public class GrpcDataService
 {
     private readonly DroneService.DroneServiceClient _client;
-    private string _clientId = "";
-    private const string ClientIdFile = "client_id.txt";
     
-    public string ClientId => _clientId;
+    // Dane sesji (w pamięci)
+    public string Username { get; private set; } = "";
+    public string Role { get; private set; } = "";
+    public bool IsAdmin => Role == "Admin";
+    public bool IsLoggedIn => !string.IsNullOrEmpty(Username);
 
     public GrpcDataService()
     {
-        // Adres lokalny serwera.
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         
         var httpHandler = new SocketsHttpHandler
         {
             EnableMultipleHttp2Connections = true,
-            // To jest kluczowe dla HTTP/2 bez TLS na localhost
             PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
             KeepAlivePingDelay = TimeSpan.FromSeconds(60),
             KeepAlivePingTimeout = TimeSpan.FromSeconds(30)
@@ -39,50 +38,87 @@ public class GrpcDataService
         _client = new DroneService.DroneServiceClient(channel);
     }
 
-    /// <summary>
-    /// Rejestruje klienta na serwerze i otrzymuje unikalny identyfikator
-    /// </summary>
-    public async Task<bool> RegisterAsync()
+    // --- AUTH ---
+
+    public async Task<(bool success, string message)> LoginAsync(string username, string password)
     {
         try
         {
-            // 1. Sprawdź, czy mamy zapisane ID
-            if (File.Exists(ClientIdFile))
-            {
-                var savedId = await File.ReadAllTextAsync(ClientIdFile);
-                if (!string.IsNullOrWhiteSpace(savedId))
-                {
-                    _clientId = savedId.Trim();
-                    Console.WriteLine($"[KLIENT] Przywrócono ID: {_clientId}");
-                    return true;
-                }
-            }
-
-            // 2. Jeśli nie, zarejestruj nowe
-            var response = await _client.RegisterClientAsync(new ClientInfo { Platform = "Linux" });
+            var response = await _client.LoginAsync(new LoginRequest { Username = username, Password = password });
             if (response.Success)
             {
-                _clientId = response.ClientId;
-                Console.WriteLine($"[KLIENT] Zarejestrowano jako: {_clientId}");
-                
-                // 3. Zapisz ID do pliku
-                await File.WriteAllTextAsync(ClientIdFile, _clientId);
-                return true;
+                Username = response.Username;
+                Role = response.Role;
+                return (true, "Zalogowano pomyślnie");
             }
-            return false;
+            return (false, response.Message);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[BŁĄD] Nie można połączyć z serwerem: {ex.Message}");
+            return (false, $"Błąd połączenia: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool success, string message)> RegisterAsync(string username, string password)
+    {
+        try
+        {
+            var response = await _client.RegisterUserAsync(new RegisterRequest { Username = username, Password = password });
+            return (response.Success, response.Message);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Błąd rejestracji: {ex.Message}");
+        }
+    }
+
+    public void Logout()
+    {
+        Username = "";
+        Role = "";
+    }
+
+    // --- USER MANAGEMENT (Admin) ---
+
+    public async Task<List<UserMsg>> GetAllUsersAsync()
+    {
+        try
+        {
+            var response = await _client.GetAllUsersAsync(new Empty());
+            return new List<UserMsg>(response.Users);
+        }
+        catch
+        {
+            return new List<UserMsg>();
+        }
+    }
+
+    public async Task<bool> DeleteUserAsync(string username)
+    {
+        try
+        {
+            var response = await _client.DeleteUserAsync(new UserRequest { Username = username });
+            return response.Success;
+        }
+        catch
+        {
             return false;
         }
     }
 
+    // --- ORDERS ---
+
+    // Metoda RegisterAsync (stara) została zastąpiona przez logowanie.
+    // Usuwamy starą metodę RegisterAsync() która używała ClientInfo.
+
     public async Task<List<DroneOrder>> GetOrdersAsync()
     {
+        if (!IsLoggedIn) return new List<DroneOrder>();
+
         try
         {
-            var response = await _client.GetOrdersAsync(new ClientRequest { ClientId = _clientId });
+            // Wysyłamy Username jako clientId oraz Rolę
+            var response = await _client.GetOrdersAsync(new ClientRequest { ClientId = Username, Role = Role });
             var list = new List<DroneOrder>();
 
             foreach (var msg in response.Orders)
@@ -103,7 +139,8 @@ public class GrpcDataService
                     CurrentLat = msg.CurrentLat,
                     CurrentLng = msg.CurrentLng,
                     SendDate = DateTime.Parse(msg.SendDate),
-                    DeliveryDate = DateTime.Parse(msg.DeliveryDate)
+                    DeliveryDate = DateTime.Parse(msg.DeliveryDate),
+                    Username = msg.ClientId
                 });
             }
             return list;
@@ -117,15 +154,19 @@ public class GrpcDataService
 
     public async Task AddOrderAsync(DroneOrder order)
     {
+        if (!IsLoggedIn) return;
+        
         var msg = MapToMsg(order);
-        msg.ClientId = _clientId;  // Przypisz klienta do paczki
+        msg.ClientId = Username; // Przypisz aktualnego usera
+        // Status ustawiamy na "Oczekuje na zatwierdzenie" (lub inny, ale serwer i tak to nadpisze dla Usera)
+        
         try { await _client.AddOrderAsync(msg); } catch { }
     }
 
     public async Task UpdateOrderAsync(DroneOrder order)
     {
         var msg = MapToMsg(order);
-        msg.ClientId = _clientId;
+        msg.ClientId = Username;
         try { await _client.UpdateOrderAsync(msg); } catch { }
     }
 
@@ -136,7 +177,7 @@ public class GrpcDataService
             var response = await _client.DeleteOrderAsync(new DeleteRequest 
             { 
                 Id = orderId,
-                ClientId = _clientId
+                ClientId = Username
             });
             return response.Success;
         } 
@@ -165,7 +206,7 @@ public class GrpcDataService
             CurrentLng = order.CurrentLng,
             SendDate = order.SendDate.ToString("o"),
             DeliveryDate = order.DeliveryDate.ToString("o"),
-            ClientId = _clientId
+            ClientId = Username
         };
     }
 }

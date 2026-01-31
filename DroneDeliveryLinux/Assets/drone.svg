@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
   <!-- Białe tło z niebieskim obrysem -->
-  <circle cx="24" cy="24" r="22" fill="#FFFFFF" stroke="#3B82F6" stroke-width="2"/>
+  <circle cx="24" cy="24" r="22" fill="#FFFFFF" stroke="#512BD4" stroke-width="2"/>
 
   <!-- Kształt drona (z drone-8), wypełniony niebieskim -->
   <!-- Skaluje oryginalne ścieżki 512x512 -> 48x48 (scale = 48/512 = 0.09375) -->
-  <g transform="scale(0.09375)" fill="#3B82F6">
+  <g transform="scale(0.09375)" fill="#512BD4">
     <path d="M296.81,161.734c2.532-1.052,5.042-2.166,7.529-3.341c2.334-1.098,4.637-2.257,6.888-3.524
       c-21.114-32.128,15.119-56.904,43.724-60.497c29.016-3.623,68.628,5.714,82.732,34.242c14.782,29.901-16.751,51.435-42.678,55.744
       c-12.556,2.082-25.562,1.587-37.964-1.182c-4.654-1.037-5.073-1.32-8.04,2.036c-3.281,3.722-6.24,7.673-8.994,11.793
