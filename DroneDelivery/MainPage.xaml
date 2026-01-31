@@ -4,6 +4,13 @@
              Title="Menu Główne"
              BackgroundColor="#F5F5F7">
 
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Wyloguj" 
+                     Clicked="OnLogoutClicked" 
+                     Order="Primary" 
+                     Priority="0" />
+    </ContentPage.ToolbarItems>
+
     <VerticalStackLayout Spacing="25" VerticalOptions="Center" HorizontalOptions="Center">
         
         <Label Text="Drone Delivery System" 

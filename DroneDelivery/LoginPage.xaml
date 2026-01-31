@@ -1,0 +1,17 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneDelivery.LoginPage"
+             Title="Logowanie"
+             BackgroundColor="#1a1a2e">
+    <VerticalStackLayout Spacing="20" VerticalOptions="Center" Padding="30">
+        <Label Text="Drone Delivery System" FontSize="28" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center" />
+        
+        <Entry x:Name="LoginEntry" Placeholder="Login" TextColor="Black" BackgroundColor="White" />
+        <Entry x:Name="PasswordEntry" Placeholder="Hasło" IsPassword="True" TextColor="Black" BackgroundColor="White" />
+        
+        <Button Text="ZALOGUJ" Clicked="OnLoginClicked" BackgroundColor="#e94560" TextColor="White" FontAttributes="Bold" HeightRequest="50" />
+
+        <Button Text="ZAREJESTRUJ SIĘ" Clicked="OnRegisterClicked" BackgroundColor="Transparent" BorderColor="White" BorderWidth="1" TextColor="White" HeightRequest="40" Margin="0,10,0,0" />
+        
+    </VerticalStackLayout>
+</ContentPage>
