@@ -5,51 +5,49 @@ option csharp_namespace = "DroneServer";
 package drones;
 
 service DroneService {
-  // Rejestracja klienta (hello)
-  rpc RegisterClient (ClientInfo) returns (RegisterResponse);
-  // Pobierz paczki danego klienta
+  // --- UŻYTKOWNICY ---
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  
+  // NOWE: Zarządzanie użytkownikami
+  rpc GetAllUsers (Empty) returns (UserList);
+  rpc DeleteUser (UserRequest) returns (ServerResponse);
+
+  // --- PACZKI ---
+  rpc GetAllOrders (Empty) returns (OrderList); // Admin
+  rpc UpdateOrderStatus (StatusRequest) returns (ServerResponse); // Admin
+  
   rpc GetOrders (ClientRequest) returns (OrderList);
-  // Dodaj nową paczkę
   rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
-  // Zaktualizuj status (dron melduje pozycję)
   rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
-  // Usuń paczkę
   rpc DeleteOrder (DeleteRequest) returns (ServerResponse);
+  
+  // Stare/Kompatybilność
+  rpc RegisterClient (ClientInfo) returns (RegisterResponse);
 }
 
 message Empty {}
 
-// Informacje o kliencie przy rejestracji
-message ClientInfo {
-  string platform = 1;  // "Linux", "Mac", "Windows"
-}
+// --- WIADOMOŚCI UŻYTKOWNIKÓW ---
+message LoginRequest { string username = 1; string password = 2; }
+message LoginResponse { bool success = 1; string role = 2; string clientId = 3; string message = 4; }
 
-// Odpowiedź z przydzielonym ID klienta
-message RegisterResponse {
-  bool success = 1;
-  string clientId = 2;  // np. "Linux1", "Mac2"
-}
+message RegisterUserRequest { string username = 1; string password = 2; }
+message RegisterUserResponse { bool success = 1; string message = 2; }
 
-// Żądanie z identyfikatorem klienta
-message ClientRequest {
-  string clientId = 1;
-}
+message UserList { repeated UserMsg users = 1; }
+message UserMsg { int32 id = 1; string username = 2; string role = 3; }
+message UserRequest { string username = 1; }
 
-message DeleteRequest {
-  string id = 1;
-  string clientId = 2;
-}
+// --- WIADOMOŚCI PACZEK ---
+message StatusRequest { string orderId = 1; string newStatus = 2; bool isAdmin = 3; }
+message ClientInfo { string platform = 1; }
+message RegisterResponse { bool success = 1; string clientId = 2; }
+message ClientRequest { string clientId = 1; }
+message DeleteRequest { string id = 1; string clientId = 2; }
+message ServerResponse { bool success = 1; string message = 2; }
+message OrderList { repeated DroneOrderMsg orders = 1; }
 
-message ServerResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message OrderList {
-  repeated DroneOrderMsg orders = 1;
-}
-
-// To jest odpowiednik Twojego DroneOrder.cs
 message DroneOrderMsg {
   string id = 1;
   string originAddress = 2;
@@ -62,9 +60,9 @@ message DroneOrderMsg {
   string status = 9;
   double progress = 10;
   bool isIncoming = 11;
-  string sendDate = 12;      // Daty przesyłamy jako tekst (ISO 8601)
+  string sendDate = 12;
   string deliveryDate = 13;
   double currentLat = 14;
   double currentLng = 15;
-  string clientId = 16;      // ID klienta który utworzył paczkę
+  string clientId = 16;
 }

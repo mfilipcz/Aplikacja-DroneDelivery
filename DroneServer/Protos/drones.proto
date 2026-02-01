@@ -5,77 +5,48 @@ option csharp_namespace = "DroneServer";
 package drones;
 
 service DroneService {
-  // Auth & Users
+  // --- UŻYTKOWNICY ---
   rpc Login (LoginRequest) returns (LoginResponse);
-  rpc RegisterUser (RegisterRequest) returns (RegisterResponse);
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  
+  // NOWE: Zarządzanie użytkownikami
   rpc GetAllUsers (Empty) returns (UserList);
   rpc DeleteUser (UserRequest) returns (ServerResponse);
 
-  // Orders
+  // --- PACZKI ---
+  rpc GetAllOrders (Empty) returns (OrderList); // Admin
+  rpc UpdateOrderStatus (StatusRequest) returns (ServerResponse); // Admin
+  
   rpc GetOrders (ClientRequest) returns (OrderList);
   rpc AddOrder (DroneOrderMsg) returns (ServerResponse);
   rpc UpdateOrder (DroneOrderMsg) returns (ServerResponse);
   rpc DeleteOrder (DeleteRequest) returns (ServerResponse);
+  
+  // Stare/Kompatybilność
+  rpc RegisterClient (ClientInfo) returns (RegisterResponse);
 }
 
 message Empty {}
 
-// --- Auth Messages ---
+// --- WIADOMOŚCI UŻYTKOWNIKÓW ---
+message LoginRequest { string username = 1; string password = 2; }
+message LoginResponse { bool success = 1; string role = 2; string clientId = 3; string message = 4; }
 
-message LoginRequest {
-  string username = 1;
-  string password = 2;
-}
+message RegisterUserRequest { string username = 1; string password = 2; }
+message RegisterUserResponse { bool success = 1; string message = 2; }
 
-message LoginResponse {
-  bool success = 1;
-  string message = 2;
-  string role = 3; // "Admin" or "User"
-  string username = 4;
-}
+message UserList { repeated UserMsg users = 1; }
+message UserMsg { int32 id = 1; string username = 2; string role = 3; }
+message UserRequest { string username = 1; }
 
-message RegisterRequest {
-  string username = 1;
-  string password = 2;
-}
-
-message RegisterResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message UserRequest {
-  string username = 1;
-}
-
-message UserMsg {
-  string username = 1;
-  string role = 2;
-}
-
-message UserList {
-  repeated UserMsg users = 1;
-}
-
-// --- Order Messages ---
-
-message ClientRequest {
-  string clientId = 1; // Teraz to będzie Username
-  string role = 2;     // "Admin" lub "User" - dla filtrowania
-}
-
-message ClientInfo {
-  string platform = 1;
-}
-
-message ClientReponse {
-  string clientId = 1;
-  bool success = 2;
-}
-
-message OrderList {
-  repeated DroneOrderMsg orders = 1;
-}
+// --- WIADOMOŚCI PACZEK ---
+message StatusRequest { string orderId = 1; string newStatus = 2; bool isAdmin = 3; }
+message ClientInfo { string platform = 1; }
+message RegisterResponse { bool success = 1; string clientId = 2; }
+message ClientRequest { string clientId = 1; }
+message DeleteRequest { string id = 1; string clientId = 2; }
+message ServerResponse { bool success = 1; string message = 2; }
+message OrderList { repeated DroneOrderMsg orders = 1; }
 
 message DroneOrderMsg {
   string id = 1;
@@ -93,15 +64,5 @@ message DroneOrderMsg {
   string deliveryDate = 13;
   double currentLat = 14;
   double currentLng = 15;
-  string clientId = 16; // Właściciel paczki (Username)
-}
-
-message ServerResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message DeleteRequest {
-  string id = 1;
-  string clientId = 2;
+  string clientId = 16;
 }

@@ -4,240 +4,154 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DroneServer.Services;
 
-public class DroneApiService : DroneService.DroneServiceBase
+public class DroneService : DroneServer.DroneService.DroneServiceBase
 {
     private readonly DroneDbContext _dbContext;
 
-    public DroneApiService(DroneDbContext dbContext)
+    public DroneService(DroneDbContext dbContext)
     {
         _dbContext = dbContext;
-        SeedAdmin();
     }
 
-    private bool IsSuspicious(string input)
-    {
-        if (string.IsNullOrEmpty(input)) return false;
-        // Sprawdź typowe znaki używane w SQL Injection
-        string[] suspicious = { "'", ";", "--", "/*", "*/", " OR ", " AND " };
-        foreach (var s in suspicious)
-        {
-            if (input.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-        }
-        return false;
-    }
-
-    private void SeedAdmin()
-    {
-        // Proste seedowanie przy każdym uruchomieniu serwisu (w produkcji robi się to inaczej)
-        if (!_dbContext.Users.Any(u => u.Username == "admin"))
-        {
-            _dbContext.Users.Add(new UserEntity { Username = "admin", Password = "admin", Role = "Admin" });
-            _dbContext.SaveChanges();
-            Console.WriteLine("[SERWER] Utworzono konto admina (admin:admin)");
-        }
-    }
-
-    // --- AUTH ---
+    // --- UŻYTKOWNICY ---
 
     public override async Task<LoginResponse> Login(LoginRequest request, ServerCallContext context)
     {
-        if (IsSuspicious(request.Username) || IsSuspicious(request.Password))
-        {
-            return new LoginResponse { Success = false, Message = "Wykryto niedozwolone znaki." };
-        }
-
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.Password == request.Password);
+
         if (user != null)
-        {
-            Console.WriteLine($"[SERWER] Zalogowano: {user.Username} ({user.Role})");
-            return new LoginResponse 
-            { 
-                Success = true, 
-                Message = "Zalogowano", 
-                Username = user.Username, 
-                Role = user.Role 
-            };
-        }
-        return new LoginResponse { Success = false, Message = "Błędne dane logowania" };
+            return new LoginResponse { Success = true, Role = user.Role, ClientId = user.Username, Message = $"Witaj {user.Username}" };
+
+        return new LoginResponse { Success = false, Message = "Błędny login lub hasło" };
     }
 
-    public override async Task<RegisterResponse> RegisterUser(RegisterRequest request, ServerCallContext context)
+    public override async Task<RegisterUserResponse> RegisterUser(RegisterUserRequest request, ServerCallContext context)
     {
-        if (IsSuspicious(request.Username) || IsSuspicious(request.Password))
-        {
-             return new RegisterResponse { Success = false, Message = "Wykryto niedozwolone znaki." };
-        }
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            return new RegisterUserResponse { Success = false, Message = "Puste dane" };
 
         if (await _dbContext.Users.AnyAsync(u => u.Username == request.Username))
-        {
-            return new RegisterResponse { Success = false, Message = "Użytkownik już istnieje" };
-        }
+            return new RegisterUserResponse { Success = false, Message = "Użytkownik już istnieje" };
 
-        var newUser = new UserEntity 
-        { 
-            Username = request.Username, 
-            Password = request.Password, 
-            Role = "User" // Domyślnie User
-        };
-
-        _dbContext.Users.Add(newUser);
+        _dbContext.Users.Add(new UserEntity { Username = request.Username, Password = request.Password, Role = "user" });
         await _dbContext.SaveChangesAsync();
-        
-        Console.WriteLine($"[SERWER] Zarejestrowano nowego użytkownika: {request.Username}");
-        return new RegisterResponse { Success = true, Message = "Konto utworzone" };
+
+        Console.WriteLine($"[SERWER] 👤 Utworzono użytkownika: {request.Username}");
+        return new RegisterUserResponse { Success = true, Message = "Konto utworzone" };
     }
 
+    // NOWE: Pobieranie wszystkich użytkowników
     public override async Task<UserList> GetAllUsers(Empty request, ServerCallContext context)
     {
-        // Tutaj powinniśmy sprawdzać czy dzwoniący to Admin, ale upraszczamy
         var users = await _dbContext.Users.ToListAsync();
         var response = new UserList();
-        foreach (var u in users)
-        {
-            response.Users.Add(new UserMsg { Username = u.Username, Role = u.Role });
-        }
+        foreach (var u in users) response.Users.Add(new UserMsg { Id = u.Id, Username = u.Username, Role = u.Role });
         return response;
     }
 
+    // NOWE: Usuwanie użytkownika
     public override async Task<ServerResponse> DeleteUser(UserRequest request, ServerCallContext context)
     {
+        if (request.Username == "admin") 
+            return new ServerResponse { Success = false, Message = "Nie można usunąć głównego administratora!" };
+
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
         if (user != null)
         {
-            if (user.Username == "admin") 
-                return new ServerResponse { Success = false, Message = "Nie można usunąć głównego admina" };
+            // Usuwamy też paczki tego usera, żeby nie śmiecić w bazie
+            var userOrders = _dbContext.Orders.Where(o => o.ClientId == user.Username);
+            _dbContext.Orders.RemoveRange(userOrders);
 
             _dbContext.Users.Remove(user);
-            
-            // Opcjonalnie: usuń też paczki tego usera?
-            var orders = _dbContext.Orders.Where(o => o.ClientId == request.Username);
-            _dbContext.Orders.RemoveRange(orders);
-            
             await _dbContext.SaveChangesAsync();
-            return new ServerResponse { Success = true, Message = "Usunięto użytkownika" };
+            return new ServerResponse { Success = true, Message = "Usunięto użytkownika i jego paczki" };
         }
-        return new ServerResponse { Success = false, Message = "Nie znaleziono użytkownika" };
+        return new ServerResponse { Success = false, Message = "Nie znaleziono" };
     }
 
-    // --- ORDERS ---
+    // --- PACZKI (ADMIN) ---
+
+    public override async Task<OrderList> GetAllOrders(Empty request, ServerCallContext context)
+    {
+        var entities = await _dbContext.Orders.ToListAsync();
+        var response = new OrderList();
+        foreach (var e in entities) response.Orders.Add(MapToMsg(e));
+        return response;
+    }
+
+    public override async Task<ServerResponse> UpdateOrderStatus(StatusRequest request, ServerCallContext context)
+    {
+        // Tutaj prosta weryfikacja flagi isAdmin, w produkcji weryfikowalibyśmy token/sesję
+        if (!request.IsAdmin) return new ServerResponse { Success = false, Message = "Brak uprawnień" };
+        
+        var entity = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.OrderId);
+        if (entity != null)
+        {
+            entity.Status = request.NewStatus;
+            await _dbContext.SaveChangesAsync();
+            return new ServerResponse { Success = true };
+        }
+        return new ServerResponse { Success = false };
+    }
+
+    // --- PACZKI (USER) ---
 
     public override async Task<OrderList> GetOrders(ClientRequest request, ServerCallContext context)
     {
-        List<DroneEntity> entities;
-
-        if (request.Role == "Admin")
-        {
-            // Admin widzi wszystko
-            entities = await _dbContext.Orders.ToListAsync();
-        }
-        else
-        {
-            // User widzi tylko swoje
-            entities = await _dbContext.Orders
-                .Where(o => o.ClientId == request.ClientId) // ClientId to teraz Username
-                .ToListAsync();
-        }
-
+        var entities = await _dbContext.Orders.Where(o => o.ClientId == request.ClientId).ToListAsync();
         var response = new OrderList();
-        foreach (var e in entities)
-        {
-            response.Orders.Add(MapToMsg(e));
-        }
+        foreach (var e in entities) response.Orders.Add(MapToMsg(e));
         return response;
     }
 
     public override async Task<ServerResponse> AddOrder(DroneOrderMsg request, ServerCallContext context)
     {
-        // Sprawdź duplikaty
-        if (await _dbContext.Orders.AnyAsync(x => x.Id == request.Id))
-             return new ServerResponse { Success = true, Message = "Już istnieje" };
-
-        var entity = new DroneEntity
+        if (!await _dbContext.Orders.AnyAsync(x => x.Id == request.Id))
         {
-            Id = request.Id,
-            OriginAddress = request.OriginAddress,
-            OriginLat = request.OriginLat,
-            OriginLng = request.OriginLng,
-            DestinationAddress = request.DestinationAddress,
-            DestLat = request.DestLat,
-            DestLng = request.DestLng,
-            PackageWeightKg = request.PackageWeightKg,
+            // Domyślny status
+            if (string.IsNullOrEmpty(request.Status)) request.Status = "Oczekuje na zatwierdzenie";
             
-            // WAŻNE: Domyślny status dla Usera to "Oczekuje na zatwierdzenie"
-            // Chyba że status przyszedł już jako "W drodze" (np. od Admina)
-            Status = string.IsNullOrEmpty(request.Status) ? "Oczekuje na zatwierdzenie" : request.Status,
-            
-            Progress = request.Progress,
-            IsIncoming = request.IsIncoming,
-            SendDate = request.SendDate,
-            DeliveryDate = request.DeliveryDate,
-            CurrentLat = request.CurrentLat,
-            CurrentLng = request.CurrentLng,
-            ClientId = request.ClientId // Username
-        };
-
-        _dbContext.Orders.Add(entity);
-        await _dbContext.SaveChangesAsync();
-        
-        Console.WriteLine($"[SERWER] Dodano paczkę: {request.Id} (User: {request.ClientId}, Status: {entity.Status})");
-        return new ServerResponse { Success = true, Message = "OK" };
+            _dbContext.Orders.Add(MapToEntity(request));
+            await _dbContext.SaveChangesAsync();
+            Console.WriteLine($"[SERWER] 📦 Nowa paczka od {request.ClientId}");
+        }
+        return new ServerResponse { Success = true };
     }
 
     public override async Task<ServerResponse> UpdateOrder(DroneOrderMsg request, ServerCallContext context)
     {
         var entity = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.Id);
-        
+        // User może aktualizować tylko paczki "W drodze"
+        // Ale jeśli request przychodzi od symulatora, to on po prostu aktualizuje pozycję
         if (entity != null)
         {
             entity.CurrentLat = request.CurrentLat;
             entity.CurrentLng = request.CurrentLng;
-            entity.Status = request.Status;
-            entity.Progress = request.Progress;
             
-            // Jeśli paczka została "wysłana" przez admina (zmieniono status na W drodze),
-            // to tutaj się to zapisze.
-
+            // Jeśli status się zmienił w symulacji
+            if(!string.IsNullOrEmpty(request.Status)) entity.Status = request.Status;
+            
+            entity.Progress = request.Progress;
             await _dbContext.SaveChangesAsync();
         }
         return new ServerResponse { Success = true };
     }
-
-    public override async Task<ServerResponse> DeleteOrder(DeleteRequest request, ServerCallContext context)
-    {
-        // Admin może usuwać wszystko, User tylko swoje (sprawdzamy to?)
-        // Na razie prosta logika:
-        var entity = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.Id);
-        if (entity != null)
-        {
-            // Dodatkowe zabezpieczenie: jeśli request.ClientId jest podane i nie jest Adminem, sprawdź własność
-            // Ale dla uproszczenia pomijamy tu walidację roli w Delete
-            _dbContext.Orders.Remove(entity);
-            await _dbContext.SaveChangesAsync();
-            return new ServerResponse { Success = true, Message = "Usunięto" };
-        }
-        return new ServerResponse { Success = false, Message = "Nie znaleziono" };
+    
+    // --- Helpery ---
+    private DroneOrderMsg MapToMsg(DroneEntity e) => new DroneOrderMsg { Id = e.Id, OriginAddress = e.OriginAddress, OriginLat = e.OriginLat, OriginLng = e.OriginLng, DestinationAddress = e.DestinationAddress, DestLat = e.DestLat, DestLng = e.DestLng, PackageWeightKg = e.PackageWeightKg, Status = e.Status, Progress = e.Progress, IsIncoming = e.IsIncoming, SendDate = e.SendDate, DeliveryDate = e.DeliveryDate, CurrentLat = e.CurrentLat, CurrentLng = e.CurrentLng, ClientId = e.ClientId };
+    private DroneEntity MapToEntity(DroneOrderMsg m) => new DroneEntity { Id = m.Id, OriginAddress = m.OriginAddress, OriginLat = m.OriginLat, OriginLng = m.OriginLng, DestinationAddress = m.DestinationAddress, DestLat = m.DestLat, DestLng = m.DestLng, PackageWeightKg = m.PackageWeightKg, Status = m.Status, Progress = m.Progress, IsIncoming = m.IsIncoming, SendDate = m.SendDate, DeliveryDate = m.DeliveryDate, CurrentLat = m.CurrentLat, CurrentLng = m.CurrentLng, ClientId = m.ClientId };
+    
+    // Stare/Nieużywane lub Kompatybilność
+    public override async Task<ServerResponse> DeleteOrder(DeleteRequest request, ServerCallContext context) 
+    { 
+        var e = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.Id); 
+        if (e != null) { _dbContext.Orders.Remove(e); await _dbContext.SaveChangesAsync(); return new ServerResponse { Success = true }; } 
+        return new ServerResponse { Success = false };
     }
 
-    private DroneOrderMsg MapToMsg(DroneEntity e)
+    public override Task<RegisterResponse> RegisterClient(ClientInfo request, ServerCallContext context) 
     {
-        return new DroneOrderMsg
-        {
-            Id = e.Id,
-            OriginAddress = e.OriginAddress,
-            OriginLat = e.OriginLat,
-            OriginLng = e.OriginLng,
-            DestinationAddress = e.DestinationAddress,
-            DestLat = e.DestLat,
-            DestLng = e.DestLng,
-            PackageWeightKg = e.PackageWeightKg,
-            Status = e.Status,
-            Progress = e.Progress,
-            IsIncoming = e.IsIncoming,
-            SendDate = e.SendDate,
-            DeliveryDate = e.DeliveryDate,
-            CurrentLat = e.CurrentLat,
-            CurrentLng = e.CurrentLng,
-            ClientId = e.ClientId
-        };
+        // Kompatybilność z mac_v2 - zwracamy 'Guest' lub generujemy ID
+        return Task.FromResult(new RegisterResponse { Success = true, ClientId = "Guest" });
     }
 }

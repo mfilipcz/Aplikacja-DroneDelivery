@@ -28,7 +28,7 @@ using (var scope = app.Services.CreateScope())
     // Seeding
     if (!db.Users.Any(u => u.Username == "admin"))
     {
-        db.Users.Add(new UserEntity { Username = "admin", Password = "admin", Role = "Admin" });
+        db.Users.Add(new UserEntity { Username = "admin", Password = "admin", Role = "admin" });
     }
     if (!db.Users.Any(u => u.Username == "user"))
     {
@@ -37,7 +37,7 @@ using (var scope = app.Services.CreateScope())
     db.SaveChanges();
 }
 
-app.MapGrpcService<DroneApiService>();
+app.MapGrpcService<DroneServer.Services.DroneService>();
 app.MapGet("/", () => "Serwer Dronów z SQLite działa!");
 
 app.Run();
