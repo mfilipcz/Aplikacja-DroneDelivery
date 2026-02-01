@@ -24,9 +24,20 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DroneDbContext>();
     db.Database.EnsureCreated();
+
+    // Seeding
+    if (!db.Users.Any(u => u.Username == "admin"))
+    {
+        db.Users.Add(new UserEntity { Username = "admin", Password = "admin", Role = "admin" });
+    }
+    if (!db.Users.Any(u => u.Username == "user"))
+    {
+        db.Users.Add(new UserEntity { Username = "user", Password = "user", Role = "User" });
+    }
+    db.SaveChanges();
 }
 
-app.MapGrpcService<DroneApiService>();
+app.MapGrpcService<DroneServer.Services.DroneService>();
 app.MapGet("/", () => "Serwer Dronów z SQLite działa!");
 
 app.Run();

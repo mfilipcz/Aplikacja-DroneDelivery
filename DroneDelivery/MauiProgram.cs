@@ -35,7 +35,7 @@ public static class MauiProgram
                 EnableMultipleHttp2Connections = true
             };
 
-            // ZMIANA PORTU NA 5011 (zgodnie z nowym serwerem)
+            // ZMIANA PORTU NA 5011 (zgodnie z nowym serwerem) 100.81.235.110
             var channel = GrpcChannel.ForAddress("http://127.0.0.1:5011", new GrpcChannelOptions
             {
                 HttpHandler = httpHandler

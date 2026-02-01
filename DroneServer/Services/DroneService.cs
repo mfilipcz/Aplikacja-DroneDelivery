@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DroneServer.Services;
 
-public class DroneApiService : DroneService.DroneServiceBase
+public class DroneService : DroneServer.DroneService.DroneServiceBase
 {
     private readonly DroneDbContext _dbContext;
 
-    public DroneApiService(DroneDbContext dbContext)
+    public DroneService(DroneDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -17,9 +17,6 @@ public class DroneApiService : DroneService.DroneServiceBase
 
     public override async Task<LoginResponse> Login(LoginRequest request, ServerCallContext context)
     {
-        if (request.Username == "admin" && request.Password == "admin")
-            return new LoginResponse { Success = true, Role = "admin", ClientId = "ADMIN", Message = "Witaj Adminie" };
-
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.Password == request.Password);
 
         if (user != null)
@@ -43,7 +40,6 @@ public class DroneApiService : DroneService.DroneServiceBase
         return new RegisterUserResponse { Success = true, Message = "Konto utworzone" };
     }
 
-    // NOWE: Pobieranie wszystkich użytkowników
     public override async Task<UserList> GetAllUsers(Empty request, ServerCallContext context)
     {
         var users = await _dbContext.Users.ToListAsync();
@@ -52,7 +48,6 @@ public class DroneApiService : DroneService.DroneServiceBase
         return response;
     }
 
-    // NOWE: Usuwanie użytkownika
     public override async Task<ServerResponse> DeleteUser(UserRequest request, ServerCallContext context)
     {
         if (request.Username == "admin") 
@@ -61,7 +56,6 @@ public class DroneApiService : DroneService.DroneServiceBase
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
         if (user != null)
         {
-            // Usuwamy też paczki tego usera, żeby nie śmiecić w bazie
             var userOrders = _dbContext.Orders.Where(o => o.ClientId == user.Username);
             _dbContext.Orders.RemoveRange(userOrders);
 
@@ -85,6 +79,7 @@ public class DroneApiService : DroneService.DroneServiceBase
     public override async Task<ServerResponse> UpdateOrderStatus(StatusRequest request, ServerCallContext context)
     {
         if (!request.IsAdmin) return new ServerResponse { Success = false, Message = "Brak uprawnień" };
+        
         var entity = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.OrderId);
         if (entity != null)
         {
@@ -109,11 +104,15 @@ public class DroneApiService : DroneService.DroneServiceBase
     {
         if (!await _dbContext.Orders.AnyAsync(x => x.Id == request.Id))
         {
+            // --- POPRAWKA: WYMUSZENIE OCZEKIWANIA ---
+            // Niezależnie co przysłał klient (nawet jeśli kolega przysłał "W drodze"),
+            // my ustawiamy sztywno "Oczekuje na zatwierdzenie".
             request.Status = "Oczekuje na zatwierdzenie";
             request.Progress = 0;
+            
             _dbContext.Orders.Add(MapToEntity(request));
             await _dbContext.SaveChangesAsync();
-            Console.WriteLine($"[SERWER] 📦 Nowa paczka od {request.ClientId}");
+            Console.WriteLine($"[SERWER] 📦 Nowa paczka od {request.ClientId} - Czeka na akceptację Admina");
         }
         return new ServerResponse { Success = true };
     }
@@ -121,14 +120,25 @@ public class DroneApiService : DroneService.DroneServiceBase
     public override async Task<ServerResponse> UpdateOrder(DroneOrderMsg request, ServerCallContext context)
     {
         var entity = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.Id);
-        // User może aktualizować tylko paczki "W drodze"
-        if (entity != null && entity.Status == "W drodze")
+        
+        if (entity != null)
         {
-            entity.CurrentLat = request.CurrentLat;
-            entity.CurrentLng = request.CurrentLng;
-            entity.Status = request.Status;
-            entity.Progress = request.Progress;
-            await _dbContext.SaveChangesAsync();
+            // --- POPRAWKA: ZABEZPIECZENIE RUCHU ---
+            // Symulator może aktualizować pozycję TYLKO jeśli paczka jest już "W drodze".
+            // Zapobiega to sytuacji, gdzie symulator "kradnie" paczkę oczekującą.
+            // Wyjątek: Zmiana statusu (np. admin coś wymusił).
+            bool isStatusChange = !string.IsNullOrEmpty(request.Status) && request.Status != entity.Status;
+
+            if (entity.Status == "W drodze" || isStatusChange)
+            {
+                entity.CurrentLat = request.CurrentLat;
+                entity.CurrentLng = request.CurrentLng;
+                
+                if(!string.IsNullOrEmpty(request.Status)) entity.Status = request.Status;
+                
+                entity.Progress = request.Progress;
+                await _dbContext.SaveChangesAsync();
+            }
         }
         return new ServerResponse { Success = true };
     }
@@ -137,7 +147,16 @@ public class DroneApiService : DroneService.DroneServiceBase
     private DroneOrderMsg MapToMsg(DroneEntity e) => new DroneOrderMsg { Id = e.Id, OriginAddress = e.OriginAddress, OriginLat = e.OriginLat, OriginLng = e.OriginLng, DestinationAddress = e.DestinationAddress, DestLat = e.DestLat, DestLng = e.DestLng, PackageWeightKg = e.PackageWeightKg, Status = e.Status, Progress = e.Progress, IsIncoming = e.IsIncoming, SendDate = e.SendDate, DeliveryDate = e.DeliveryDate, CurrentLat = e.CurrentLat, CurrentLng = e.CurrentLng, ClientId = e.ClientId };
     private DroneEntity MapToEntity(DroneOrderMsg m) => new DroneEntity { Id = m.Id, OriginAddress = m.OriginAddress, OriginLat = m.OriginLat, OriginLng = m.OriginLng, DestinationAddress = m.DestinationAddress, DestLat = m.DestLat, DestLng = m.DestLng, PackageWeightKg = m.PackageWeightKg, Status = m.Status, Progress = m.Progress, IsIncoming = m.IsIncoming, SendDate = m.SendDate, DeliveryDate = m.DeliveryDate, CurrentLat = m.CurrentLat, CurrentLng = m.CurrentLng, ClientId = m.ClientId };
     
-    // Stare/Nieużywane
-    public override async Task<ServerResponse> DeleteOrder(DeleteRequest request, ServerCallContext context) { var e = await _dbContext.Orders.FirstOrDefaultAsync(x=>x.Id==request.Id); if(e!=null){_dbContext.Orders.Remove(e);await _dbContext.SaveChangesAsync();return new ServerResponse{Success=true};} return new ServerResponse{Success=false};}
-    public override Task<RegisterResponse> RegisterClient(ClientInfo request, ServerCallContext context) => Task.FromResult(new RegisterResponse { Success = true, ClientId = "Guest" });
+    // Kompatybilność
+    public override async Task<ServerResponse> DeleteOrder(DeleteRequest request, ServerCallContext context) 
+    { 
+        var e = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == request.Id); 
+        if (e != null) { _dbContext.Orders.Remove(e); await _dbContext.SaveChangesAsync(); return new ServerResponse { Success = true }; } 
+        return new ServerResponse { Success = false };
+    }
+
+    public override Task<RegisterResponse> RegisterClient(ClientInfo request, ServerCallContext context) 
+    {
+        return Task.FromResult(new RegisterResponse { Success = true, ClientId = "Guest" });
+    }
 }
