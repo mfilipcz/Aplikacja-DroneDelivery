@@ -1,5 +1,5 @@
 using Grpc.Net.Client;
-using DroneServer;
+// using DroneServer;
 using DroneDeliveryLinux.Models;
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ public class GrpcDataService
     // Dane sesji (w pamięci)
     public string Username { get; private set; } = "";
     public string Role { get; private set; } = "";
-    public bool IsAdmin => Role == "Admin";
+    public bool IsAdmin => string.Equals(Role, "Admin", StringComparison.OrdinalIgnoreCase);
     public bool IsLoggedIn => !string.IsNullOrEmpty(Username);
 
     public GrpcDataService()
@@ -47,7 +47,7 @@ public class GrpcDataService
             var response = await _client.LoginAsync(new LoginRequest { Username = username, Password = password });
             if (response.Success)
             {
-                Username = response.Username;
+                Username = response.ClientId;
                 Role = response.Role;
                 return (true, "Zalogowano pomyślnie");
             }
@@ -63,7 +63,7 @@ public class GrpcDataService
     {
         try
         {
-            var response = await _client.RegisterUserAsync(new RegisterRequest { Username = username, Password = password });
+            var response = await _client.RegisterUserAsync(new RegisterUserRequest { Username = username, Password = password });
             return (response.Success, response.Message);
         }
         catch (Exception ex)
@@ -108,48 +108,86 @@ public class GrpcDataService
 
     // --- ORDERS ---
 
-    // Metoda RegisterAsync (stara) została zastąpiona przez logowanie.
-    // Usuwamy starą metodę RegisterAsync() która używała ClientInfo.
+    // Dla Admina: Pobierz wszystkie
+    public async Task<List<DroneOrder>> GetAllOrdersAsync()
+    {
+        if (!IsLoggedIn || !IsAdmin) return new List<DroneOrder>();
+        
+        try
+        {
+            var response = await _client.GetAllOrdersAsync(new Empty());
+            return MapToModelList(response.Orders);
+        }
+        catch
+        {
+            return new List<DroneOrder>();
+        }
+    }
 
+    // Dla Admina: Zmień status
+    public async Task<bool> UpdateOrderStatusAsync(string orderId, string newStatus)
+    {
+        if (!IsAdmin) return false;
+        try
+        {
+            var response = await _client.UpdateOrderStatusAsync(new StatusRequest 
+            { 
+                OrderId = orderId, 
+                NewStatus = newStatus, 
+                IsAdmin = true 
+            });
+            return response.Success;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Dla Usera: Pobierz swoje
     public async Task<List<DroneOrder>> GetOrdersAsync()
     {
         if (!IsLoggedIn) return new List<DroneOrder>();
 
         try
         {
-            // Wysyłamy Username jako clientId oraz Rolę
-            var response = await _client.GetOrdersAsync(new ClientRequest { ClientId = Username, Role = Role });
-            var list = new List<DroneOrder>();
-
-            foreach (var msg in response.Orders)
-            {
-                list.Add(new DroneOrder
-                {
-                    Id = msg.Id,
-                    OriginAddress = msg.OriginAddress,
-                    OriginLat = msg.OriginLat,
-                    OriginLng = msg.OriginLng,
-                    DestinationAddress = msg.DestinationAddress,
-                    DestLat = msg.DestLat,
-                    DestLng = msg.DestLng,
-                    PackageWeightKg = msg.PackageWeightKg,
-                    Status = msg.Status,
-                    Progress = msg.Progress,
-                    IsIncoming = msg.IsIncoming,
-                    CurrentLat = msg.CurrentLat,
-                    CurrentLng = msg.CurrentLng,
-                    SendDate = DateTime.Parse(msg.SendDate),
-                    DeliveryDate = DateTime.Parse(msg.DeliveryDate),
-                    Username = msg.ClientId
-                });
-            }
-            return list;
+            // Wysyłamy Username jako clientId
+            var response = await _client.GetOrdersAsync(new ClientRequest { ClientId = Username });
+            return MapToModelList(response.Orders);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[BŁĄD gRPC] {ex.Message}");
             return new List<DroneOrder>();
         }
+    }
+
+    private List<DroneOrder> MapToModelList(IEnumerable<DroneOrderMsg> msgs)
+    {
+        var list = new List<DroneOrder>();
+        foreach (var msg in msgs)
+        {
+            list.Add(new DroneOrder
+            {
+                Id = msg.Id,
+                OriginAddress = msg.OriginAddress,
+                OriginLat = msg.OriginLat,
+                OriginLng = msg.OriginLng,
+                DestinationAddress = msg.DestinationAddress,
+                DestLat = msg.DestLat,
+                DestLng = msg.DestLng,
+                PackageWeightKg = msg.PackageWeightKg,
+                Status = msg.Status,
+                Progress = msg.Progress,
+                IsIncoming = msg.IsIncoming,
+                CurrentLat = msg.CurrentLat,
+                CurrentLng = msg.CurrentLng,
+                SendDate = DateTime.Parse(msg.SendDate),
+                DeliveryDate = DateTime.Parse(msg.DeliveryDate),
+                Username = msg.ClientId
+            });
+        }
+        return list;
     }
 
     public async Task AddOrderAsync(DroneOrder order)

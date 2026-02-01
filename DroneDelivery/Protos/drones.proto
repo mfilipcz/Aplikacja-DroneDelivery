@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option csharp_namespace = "DroneDeliveryLinux";
+option csharp_namespace = "DroneServer";
 
 package drones;
 

@@ -1,0 +1,77 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneDelivery.AdminPage"
+             Title="Panel Administratora"
+             BackgroundColor="#F5F5F7">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Wyloguj" Clicked="OnLogoutClicked" Order="Primary"/>
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto, *">
+        
+        <Grid Grid.Row="0" ColumnDefinitions="*,*" Padding="10" BackgroundColor="White">
+            <Button x:Name="TabOrdersBtn" Text="📦 PACZKI" Clicked="OnTabChanged" BackgroundColor="#6200EE" TextColor="White" CornerRadius="0" Margin="0,0,2,0"/>
+            <Button x:Name="TabUsersBtn" Text="👤 UŻYTKOWNICY" Clicked="OnTabChanged" BackgroundColor="LightGray" TextColor="Black" CornerRadius="0" Grid.Column="1"/>
+        </Grid>
+
+        <RefreshView Grid.Row="1" x:Name="OrdersView" IsVisible="True" Refreshing="OnRefreshOrders">
+            <CollectionView x:Name="OrdersList" Margin="10">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Margin="0,5" Padding="10" BackgroundColor="White" CornerRadius="8" BorderColor="Transparent">
+                            <StackLayout>
+                                <Label Text="{Binding ClientId, StringFormat='Klient: {0}'}" FontAttributes="Bold" TextColor="Black"/>
+                                <Grid ColumnDefinitions="*,*">
+                                    <Label Grid.Column="0" Text="{Binding OriginAddress, StringFormat='Z: {0}'}" TextColor="Gray" FontSize="12"/>
+                                    <Label Grid.Column="1" Text="{Binding DestinationAddress, StringFormat='Do: {0}'}" TextColor="Gray" FontSize="12"/>
+                                </Grid>
+                                <Label Text="{Binding Status}" TextColor="Purple" FontAttributes="Bold" Margin="0,5,0,0"/>
+                                
+                                <HorizontalStackLayout Spacing="10" Margin="0,10,0,0" IsVisible="False">
+                                    <Button Text="ZATWIERDŹ" Clicked="OnApproveClicked" CommandParameter="{Binding Id}" BackgroundColor="Green" TextColor="White" HeightRequest="35" FontSize="12"/>
+                                    <Button Text="ODRZUĆ" Clicked="OnRejectClicked" CommandParameter="{Binding Id}" BackgroundColor="Red" TextColor="White" HeightRequest="35" FontSize="12"/>
+                                    
+                                    <HorizontalStackLayout.Triggers>
+                                        <DataTrigger TargetType="HorizontalStackLayout" Binding="{Binding Status}" Value="Oczekuje na zatwierdzenie">
+                                            <Setter Property="IsVisible" Value="True"/>
+                                        </DataTrigger>
+                                    </HorizontalStackLayout.Triggers>
+                                </HorizontalStackLayout>
+                            </StackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <ScrollView Grid.Row="1" x:Name="UsersView" IsVisible="False" Padding="10">
+            <VerticalStackLayout Spacing="10">
+                <Frame BackgroundColor="White" Padding="10" CornerRadius="8">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Entry x:Name="NewUserEntry" Placeholder="Nazwa nowego użytkownika" TextColor="Black" BackgroundColor="Transparent"/>
+                        <Button Grid.Column="1" Text="DODAJ" Clicked="OnAddUserClicked" BackgroundColor="#6200EE" TextColor="White" FontAttributes="Bold"/>
+                    </Grid>
+                </Frame>
+
+                <Label Text="Lista Użytkowników:" FontAttributes="Bold" Margin="0,10,0,5" TextColor="#333"/>
+
+                <CollectionView x:Name="UsersList">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame Margin="0,5" Padding="15" BackgroundColor="White" CornerRadius="8" BorderColor="Transparent">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <VerticalStackLayout VerticalOptions="Center">
+                                        <Label Text="{Binding Username}" FontAttributes="Bold" TextColor="Black" FontSize="16"/>
+                                        <Label Text="{Binding Role}" TextColor="Gray" FontSize="12"/>
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="1" Text="USUŃ" Clicked="OnDeleteUserClicked" CommandParameter="{Binding Username}" BackgroundColor="#FFEbee" TextColor="Red" HeightRequest="40" FontSize="12"/>
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

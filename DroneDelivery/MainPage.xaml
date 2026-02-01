@@ -1,0 +1,41 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneDelivery.MainPage"
+             Title="Menu Główne"
+             BackgroundColor="#F5F5F7">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Wyloguj" 
+                     Clicked="OnLogoutClicked" 
+                     Order="Primary" 
+                     Priority="0" />
+    </ContentPage.ToolbarItems>
+
+    <VerticalStackLayout Spacing="25" VerticalOptions="Center" HorizontalOptions="Center">
+        
+        <Label Text="Drone Delivery System" 
+               FontSize="32" HorizontalOptions="Center" TextColor="#333"/>
+        
+        <Label Text="Wybierz operację, aby rozpocząć" 
+               FontSize="16" HorizontalOptions="Center" TextColor="#666"/>
+
+        <Button Text="📦 Moje Paczki i Mapa"
+                Clicked="OnMyPackagesClicked"
+                BackgroundColor="White"
+                TextColor="#6200EE"
+                BorderColor="#6200EE"
+                BorderWidth="1"
+                HeightRequest="60"
+                WidthRequest="300"
+                CornerRadius="8"/>
+
+        <Button Text="📤 Nadaj Paczkę"
+                Clicked="OnSendPackageClicked"
+                BackgroundColor="#6200EE"
+                TextColor="White"
+                HeightRequest="60"
+                WidthRequest="300"
+                CornerRadius="8"/>
+
+    </VerticalStackLayout>
+</ContentPage>

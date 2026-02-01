@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DroneDeliveryLinux.Models;
 using DroneDeliveryLinux.Services;
-using DroneServer;
+// using DroneServer;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using System;
@@ -57,7 +57,8 @@ public partial class AdminViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshOrders()
     {
-        var orders = await _grpcService.GetOrdersAsync();
+        // Admin widzi wszystkie zamówienia
+        var orders = await _grpcService.GetAllOrdersAsync();
         
         // Prosta synchronizacja listy
         AllOrders.Clear();
@@ -69,9 +70,13 @@ public partial class AdminViewModel : ObservableObject
     {
         if (order.Status == "Oczekuje na zatwierdzenie")
         {
-            order.Status = "W drodze"; // To uruchomi symulację u klienta
-            await _grpcService.UpdateOrderAsync(order);
-            await RefreshOrders();
+            // Zmiana statusu przez dedykowaną metodę Admina
+            var success = await _grpcService.UpdateOrderStatusAsync(order.Id, "W drodze");
+            if (success)
+            {
+                order.Status = "W drodze";
+                await RefreshOrders();
+            }
         }
     }
 
