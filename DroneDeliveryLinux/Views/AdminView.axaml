@@ -21,7 +21,7 @@
     <!-- Content -->
     <TabControl Grid.Row="1" Margin="20">
       
-      <!-- TAB 1: PACZKI -->
+      <!-- Tab: Packages -->
       <TabItem Header="Zarządzanie Paczkami">
         <Grid RowDefinitions="Auto, *">
            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,10">
@@ -40,7 +40,6 @@
                        <DataTemplate>
                           <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Margin="5,0">
                              <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="{Binding IsDelivered, Converter={x:Static ObjectConverters.IsNull}}"/> 
-                             <!-- Simple trick: if IsDelivered is true, show green icon -->
                              <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" 
                                        Foreground="Green" 
                                        IsVisible="{Binding IsDelivered}"
@@ -73,7 +72,7 @@
         </Grid>
       </TabItem>
 
-      <!-- TAB 2: UŻYTKOWNICY -->
+      <!-- Tab: Users -->
       <TabItem Header="Użytkownicy">
          <Grid RowDefinitions="Auto, *">
            <StackPanel Orientation="Vertical" Spacing="10" Margin="0,0,0,10">

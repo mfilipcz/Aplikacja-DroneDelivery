@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DroneDeliveryLinux.Models;
 using DroneDeliveryLinux.Services;
-// using DroneServer;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using System;
@@ -36,12 +35,12 @@ public partial class AdminViewModel : ObservableObject
         _grpcService = grpcService;
         _onLogout = onLogout;
 
-        // Timer do odświeżania listy paczek (żeby widzieć postęp)
+        // Order refresh timer
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += async (s, e) => await RefreshOrders();
         _timer.Start();
 
-        // Załaduj dane
+        // Load initial data
         _ = RefreshUsers();
         _ = RefreshOrders();
     }
@@ -57,10 +56,10 @@ public partial class AdminViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshOrders()
     {
-        // Admin widzi wszystkie zamówienia
+        // Admin sees all orders
         var orders = await _grpcService.GetAllOrdersAsync();
         
-        // Prosta synchronizacja listy
+        // Sync list
         AllOrders.Clear();
         foreach (var o in orders) AllOrders.Add(o);
     }
@@ -70,7 +69,7 @@ public partial class AdminViewModel : ObservableObject
     {
         if (order.Status == "Oczekuje na zatwierdzenie")
         {
-            // Zmiana statusu przez dedykowaną metodę Admina
+            // Update status via Admin method
             var success = await _grpcService.UpdateOrderStatusAsync(order.Id, "W drodze");
             if (success)
             {
@@ -109,7 +108,6 @@ public partial class AdminViewModel : ObservableObject
                 NewPassword = "";
                 await RefreshUsers();
             }
-            // Opcjonalnie: obsługa błędu (msg)
         }
     }
 

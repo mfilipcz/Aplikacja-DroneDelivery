@@ -23,12 +23,12 @@ public partial class MainViewModel : ObservableObject
     private static readonly Dictionary<string, DroneOrder> ActiveMissions = new();
     private readonly Action _onLogout;
 
-    // Zdarzenie wywoływane po dodaniu nowego zamówienia
+    // Order events
     public event Action<DroneOrder>? OrderAdded;
     public event Action<DroneOrder>? OrderDeleted;
     public event Action<string>? ErrorOccurred;
 
-    // ID klienta (Username)
+    // Client ID
     public string ClientId => _grpcService.Username;
 
     [ObservableProperty]
@@ -79,7 +79,7 @@ public partial class MainViewModel : ObservableObject
         
         if (days < 0) { LabelCost = "Błąd daty"; return; }
         
-        // Algorytm zgodny z Mac
+        // Cost calculation
         decimal weightCost = (decimal)weight * 10.0m;
         decimal speedCost = 50.0m / (days + 1);
         decimal basePrice = 20.0m;
@@ -95,7 +95,7 @@ public partial class MainViewModel : ObservableObject
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "DroneDeliveryLinux/1.0");
         RecalculateCost();
         
-        // Startujemy ładowanie paczek
+        // Start order loading
         _ = LoadOrdersLoop();
     }
 
@@ -104,7 +104,7 @@ public partial class MainViewModel : ObservableObject
         while (_grpcService.IsLoggedIn)
         {
             await LoadOrdersAsync();
-            await Task.Delay(1000); // Polling co 1s
+            await Task.Delay(1000); // 1s polling
         }
     }
 
@@ -113,11 +113,9 @@ public partial class MainViewModel : ObservableObject
         var orders = await _grpcService.GetOrdersAsync();
         
         Dispatcher.UIThread.Post(() => {
-            // Sync lists logic could be better, but sticking to clear/add for simplicity with "ActiveMissions" preservation
-            // Actually, clearing breaks "ActiveMissions" if we rely on object reference.
-            // Let's implement smart sync to support polling.
+            // Sync lists
             
-            // 1. Add/Update
+            // Add/Update
             foreach (var fetched in orders)
             {
                 var existing = AllOrders.FirstOrDefault(x => x.Id == fetched.Id);
@@ -136,7 +134,7 @@ public partial class MainViewModel : ObservableObject
                     else OutgoingOrders.Add(fetched);
                 }
 
-                // Check for simulation start
+                // Check simulation
                 var liveOrder = existing ?? fetched;
                 if (liveOrder.Status != "✅ Dostarczono" && liveOrder.Status != "Oczekuje na zatwierdzenie")
                 {
@@ -150,7 +148,7 @@ public partial class MainViewModel : ObservableObject
                 }
             }
 
-            // 2. Remove deleted
+            // Remove deleted
             var toRemove = AllOrders.Where(local => !orders.Any(remote => remote.Id == local.Id)).ToList();
             foreach (var item in toRemove)
             {
@@ -174,12 +172,11 @@ public partial class MainViewModel : ObservableObject
     public async Task DeleteOrderAsync(DroneOrder order)
     {
         var success = await _grpcService.DeleteOrderAsync(order.Id);
-        // Polling zaktualizuje listę
+        // Polling will update
     }
 
     private async Task<(double lat, double lng)?> GeocodeAddressAsync(string address)
     {
-        // ... (skrócone dla czytelności, logika bez zmian)
         try {
             var full = address.Contains("Warszawa") ? address : $"{address}, Warszawa, Polska";
             var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(full)}&format=json&limit=1";
@@ -222,12 +219,12 @@ public partial class MainViewModel : ObservableObject
 
         await _grpcService.AddOrderAsync(order);
         
-        // Dodaj lokalnie dla UI (polling to potwierdzi)
+        // Add locally for UI
         AllOrders.Add(order);
         OutgoingOrders.Add(order);
-        OrderAdded?.Invoke(order); // Przełącz na mapę
+        OrderAdded?.Invoke(order); // Switch to map
         
-        // NIE startujemy misji - czekamy na admina
+        // Mission starts after approval
         
         EntryOrigin = "";
         EntryDest = "";
@@ -243,12 +240,9 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            // Jeśli status nie jest jeszcze "W drodze" (np. Admin zmienił), ustawiamy.
-            // Ale uwaga: Jeśli user sam to uruchomił, to znaczy że status JUŻ JEST "W drodze" (z loadera)
-            
             while (true)
             {
-                // Jeśli status zmienił się na "Dostarczono" (np. przez innego klienta/admina), przerwij
+                // Stop if delivered externally
                 if (o.Status.Contains("Dostarczono")) break;
 
                 double dLat = o.DestLat - o.CurrentLat;
@@ -267,7 +261,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 else
                 {
-                    // Aktualizuj status na "W drodze" jeśli był inny
+                    // Ensure status is 'En Route'
                     if (o.Status != "✈️ W drodze") o.Status = "✈️ W drodze";
 
                     double moveLat = (dLat / distance) * speed;

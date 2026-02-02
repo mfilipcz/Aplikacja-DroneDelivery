@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-  <!-- Cień -->
   <ellipse cx="12" cy="34" rx="4" ry="2" fill="#00000033"/>
-  <!-- Główny kształt pinezki -->
   <path d="M12 0C6.48 0 2 4.48 2 10c0 7.5 10 24 10 24s10-16.5 10-24c0-5.52-4.48-10-10-10z" fill="#EF4444"/>
-  <!-- Małe białe kółko wewnątrz pinezki (przywrócone) -->
   <circle cx="12" cy="10" r="3" fill="#FFFFFF" />
-  <!-- Uwaga: nie dodajemy dużego białego koła przy spodzie; pozostawiamy tylko cień (ellipse) -->
 </svg>

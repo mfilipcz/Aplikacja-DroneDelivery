@@ -16,7 +16,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // MainWindow sam tworzy i ustawia swój DataContext (MainViewModel)
+            // MainWindow initializes its own DataContext
             desktop.MainWindow = new MainWindow();
         }
 

@@ -1,5 +1,4 @@
 using Grpc.Net.Client;
-// using DroneServer;
 using DroneDeliveryLinux.Models;
 using System;
 using System.Collections.Generic;
@@ -13,7 +12,7 @@ public class GrpcDataService
 {
     private readonly DroneService.DroneServiceClient _client;
     
-    // Dane sesji (w pamięci)
+    // Session data (in-memory)
     public string Username { get; private set; } = "";
     public string Role { get; private set; } = "";
     public bool IsAdmin => string.Equals(Role, "Admin", StringComparison.OrdinalIgnoreCase);
@@ -78,7 +77,7 @@ public class GrpcDataService
         Role = "";
     }
 
-    // --- USER MANAGEMENT (Admin) ---
+    // User Management
 
     public async Task<List<UserMsg>> GetAllUsersAsync()
     {
@@ -106,9 +105,9 @@ public class GrpcDataService
         }
     }
 
-    // --- ORDERS ---
+    // Orders
 
-    // Dla Admina: Pobierz wszystkie
+    // Admin: Get all
     public async Task<List<DroneOrder>> GetAllOrdersAsync()
     {
         if (!IsLoggedIn || !IsAdmin) return new List<DroneOrder>();
@@ -124,7 +123,7 @@ public class GrpcDataService
         }
     }
 
-    // Dla Admina: Zmień status
+    // Admin: Update status
     public async Task<bool> UpdateOrderStatusAsync(string orderId, string newStatus)
     {
         if (!IsAdmin) return false;
@@ -144,14 +143,14 @@ public class GrpcDataService
         }
     }
 
-    // Dla Usera: Pobierz swoje
+    // User: Get own orders
     public async Task<List<DroneOrder>> GetOrdersAsync()
     {
         if (!IsLoggedIn) return new List<DroneOrder>();
 
         try
         {
-            // Wysyłamy Username jako clientId
+            // Send Username as clientId
             var response = await _client.GetOrdersAsync(new ClientRequest { ClientId = Username });
             return MapToModelList(response.Orders);
         }
@@ -195,8 +194,8 @@ public class GrpcDataService
         if (!IsLoggedIn) return;
         
         var msg = MapToMsg(order);
-        msg.ClientId = Username; // Przypisz aktualnego usera
-        // Status ustawiamy na "Oczekuje na zatwierdzenie" (lub inny, ale serwer i tak to nadpisze dla Usera)
+        msg.ClientId = Username; // Assign current user
+        // Default status
         
         try { await _client.AddOrderAsync(msg); } catch { }
     }

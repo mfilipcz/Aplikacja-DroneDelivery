@@ -24,7 +24,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
-// Aliasy
+// Aliases
 using AvColor = Avalonia.Media.Color;
 using AvBrush = Avalonia.Media.IBrush;
 using AvBrushes = Avalonia.Media.Brushes;
@@ -45,7 +45,7 @@ public partial class UserView : UserControl
     private DroneOrder? _selectedOrder;
     private Border? _loadingOverlay;
 
-    // --- DESIGN SYSTEM ---
+    // --- Design System ---
     private static readonly AvColor PrimaryColor = AvColor.Parse("#512BD4");
     private static readonly AvColor AccentColor = AvColor.Parse("#FFCC00");
     private static readonly AvBrush PrimaryBrush = new SolidColorBrush(PrimaryColor);
@@ -53,13 +53,13 @@ public partial class UserView : UserControl
     private static readonly AvBrush TextLightBrush = new SolidColorBrush(AvColor.Parse("#757575"));
     private static readonly AvBrush BackgroundBrush = new SolidColorBrush(AvColor.Parse("#F3F4F6"));
 
-    // --- SKALE ---
+    // --- Scales ---
     private const double PinScale = 1.6;
     private const double PinOffsetY = 0.5;
     private const double DroneBackdropScale = 1.3;
     private const double DroneIconScale = 0.7;
 
-    // Ikonki
+    // Icons
     private const string IconBoxPath = "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15Z M5,15.91L11,19.29V12.58L5,9.21V15.91Z M19,15.91V9.21L13,12.58V19.29L19,15.91Z";
     private const string IconSendPath = "M2,21L23,12L2,3V10L17,12L2,14V21Z";
     private const string IconBackPath = "M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z";
@@ -71,7 +71,6 @@ public partial class UserView : UserControl
         _viewModel = viewModel;
         DataContext = _viewModel;
         
-        // Background
         Background = AvBrushes.White;
 
         _viewModel.OrderAdded += OnOrderAdded;
@@ -85,14 +84,12 @@ public partial class UserView : UserControl
 
         ShowMenu();
         
-        // Tytuł okna (jeśli Parent to Window) - opcjonalnie
+        // Window Title
         if (VisualRoot is Window w)
         {
              w.Title = $"Drone Delivery - {_viewModel.ClientId}";
         }
     }
-
-    // --- Reszta metod identyczna (InitializeAndShowMenuAsync usunięte bo logowanie jest wcześniej) ---
 
     private void OnOrderAdded(DroneOrder order)
     {
@@ -226,7 +223,7 @@ public partial class UserView : UserControl
         btnMap.BorderBrush = PrimaryBrush; btnMap.BorderThickness = new Thickness(2);
         var btnSend = CreateModernButton("Nadaj Paczkę", IconSendPath, PrimaryBrush, AvBrushes.White, onClick: ShowSendPage);
         
-        // Dodaj przycisk wylogowania
+        // Logout button
         var btnLogout = new Button { Content = "Wyloguj", HorizontalAlignment = HorizontalAlignment.Center, Background = AvBrushes.Transparent, Foreground = TextLightBrush, Margin = new Thickness(0, 20, 0, 0) };
         btnLogout.Click += (s, e) => _viewModel.LogoutCommand.Execute(null);
 
